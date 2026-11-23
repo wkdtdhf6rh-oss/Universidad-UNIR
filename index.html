@@ -1,0 +1,2253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>San Francisco Crust Pizza | Executive BI & AI Decision Portal</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- SheetJS (XLSX) para lectura y exportación real de Excel/CSV -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Google Fonts: Inter & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #F8FAFC;
+      color: #0F172A;
+    }
+    .card-bi {
+      background-color: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 0.875rem;
+      box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 1px 2px -1px rgba(15, 23, 42, 0.02);
+      transition: all 0.2s ease;
+    }
+    .card-bi:hover {
+      box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.07);
+    }
+    .tab-active {
+      background-color: #0F172A;
+      color: #FFFFFF;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
+    }
+    .tab-inactive {
+      color: #475569;
+      background-color: transparent;
+    }
+    .tab-inactive:hover {
+      background-color: #F1F5F9;
+      color: #0F172A;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #F1F5F9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94A3B8;
+    }
+    .chart-container {
+      position: relative;
+      width: 100%;
+      height: 300px;
+    }
+    @media (max-width: 640px) {
+      .chart-container {
+        height: 250px;
+      }
+    }
+  </style>
+</head>
+<body class="antialiased selection:bg-red-100 selection:text-red-900">
+
+  <!-- Toast / Mensaje Flotante (Sin usar alert()) -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- Encabezado Superior Fijo -->
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between py-3 gap-3">
+        <!-- Marca y Estado de Dataset -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-red-600 to-amber-600 flex items-center justify-center text-white shadow-sm shrink-0">
+              <i data-lucide="pizza" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <h1 class="text-base sm:text-lg font-extrabold tracking-tight text-slate-900">
+                  San Francisco Crust Pizza
+                </h1>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
+                  Executive BI &amp; AI
+                </span>
+              </div>
+              <p class="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
+                <span id="db-status-dot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span id="db-status-text" class="font-medium text-slate-700">Base Activa: 45,900 transacciones | 2024–2025</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Navegación por Pestañas -->
+        <nav class="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0" aria-label="Navegación Principal">
+          <button onclick="switchTab('dashboard')" id="nav-dashboard" class="tab-active flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap transition-all cursor-pointer">
+            <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+            <span>Dashboard Ejecutivo</span>
+          </button>
+          <button onclick="switchTab('data')" id="nav-data" class="tab-inactive flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap transition-all cursor-pointer">
+            <i data-lucide="database" class="w-4 h-4"></i>
+            <span>Carga de Datos (Excel / CSV)</span>
+          </button>
+          <button onclick="switchTab('ai')" id="nav-ai" class="tab-inactive flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap transition-all cursor-pointer">
+            <i data-lucide="sparkles" class="w-4 h-4 text-amber-500"></i>
+            <span>Asistente IA &amp; Evaluación Crítica</span>
+          </button>
+          <button onclick="switchTab('case')" id="nav-case" class="tab-inactive flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap transition-all cursor-pointer">
+            <i data-lucide="file-check-2" class="w-4 h-4 text-red-600"></i>
+            <span>Análisis del Caso (5 Preguntas)</span>
+          </button>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <!-- Contenedor Principal -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- ===================================================================== -->
+    <!-- PESTAÑA 1: DASHBOARD EJECUTIVO                                        -->
+    <!-- ===================================================================== -->
+    <section id="view-dashboard" class="space-y-6">
+
+      <!-- Barra de Filtros Multidimensionales -->
+      <div class="card-bi p-4 sm:p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
+          <div class="flex items-center gap-2">
+            <div class="p-1.5 rounded-lg bg-slate-100 text-slate-700">
+              <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h2 class="text-sm font-bold text-slate-900">Filtros Analíticos Multidimensionales</h2>
+              <p class="text-xs text-slate-500">Todos los KPIs, gráficos y el motor de IA se actualizan en tiempo real</p>
+            </div>
+          </div>
+
+          <!-- Atajos de periodo + Limpiar -->
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="setQuickPeriod('ALL')" id="btn-period-ALL" class="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-900 text-white transition cursor-pointer">
+              Todo 2024–2025
+            </button>
+            <button onclick="setQuickPeriod('2024')" id="btn-period-2024" class="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer">
+              Año 2024
+            </button>
+            <button onclick="setQuickPeriod('2025')" id="btn-period-2025" class="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer">
+              Año 2025
+            </button>
+            <button onclick="resetFilters()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition cursor-pointer">
+              <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+              <span>Limpiar Filtros</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Grid de Controles de Filtro -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+          <!-- Fecha Inicio -->
+          <div>
+            <label for="filter-date-start" class="block text-xs font-semibold text-slate-600 mb-1">Fecha Inicio</label>
+            <input type="date" id="filter-date-start" onchange="applyFilters()" class="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white" />
+          </div>
+          <!-- Fecha Fin -->
+          <div>
+            <label for="filter-date-end" class="block text-xs font-semibold text-slate-600 mb-1">Fecha Fin</label>
+            <input type="date" id="filter-date-end" onchange="applyFilters()" class="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white" />
+          </div>
+          <!-- Ciudad -->
+          <div>
+            <label for="filter-city" class="block text-xs font-semibold text-slate-600 mb-1">Ciudad</label>
+            <select id="filter-city" onchange="onCityFilterChange()" class="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white">
+              <option value="ALL">Todas las Ciudades</option>
+            </select>
+          </div>
+          <!-- Sucursal -->
+          <div>
+            <label for="filter-branch" class="block text-xs font-semibold text-slate-600 mb-1">Sucursal</label>
+            <select id="filter-branch" onchange="applyFilters()" class="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white">
+              <option value="ALL">Todas las Sucursales</option>
+            </select>
+          </div>
+          <!-- Segmento de Cliente -->
+          <div>
+            <label for="filter-segment" class="block text-xs font-semibold text-slate-600 mb-1">Segmento de Cliente</label>
+            <select id="filter-segment" onchange="applyFilters()" class="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white">
+              <option value="ALL">Todos los Segmentos</option>
+            </select>
+          </div>
+          <!-- Producto -->
+          <div>
+            <label for="filter-product" class="block text-xs font-semibold text-slate-600 mb-1">Producto (44 SKUs)</label>
+            <select id="filter-product" onchange="applyFilters()" class="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white">
+              <option value="ALL">Todos los Productos</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Banner dinámico de contexto activo -->
+        <div id="active-filter-banner" class="mt-3 pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+          <span id="filter-summary-label">Mostrando totalidad de registros consolidados (2024–2025).</span>
+          <button onclick="switchTab('ai')" class="inline-flex items-center gap-1 font-semibold text-amber-700 hover:text-amber-800 cursor-pointer">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+            <span>Analizar esta selección con Asistente IA →</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 6 Tarjetas KPI Principales -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <!-- KPI 1: Ventas Totales -->
+        <div class="card-bi p-4 relative overflow-hidden">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Ventas Totales</span>
+            <div class="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
+              <i data-lucide="dollar-sign" class="w-4 h-4"></i>
+            </div>
+          </div>
+          <div id="kpi-sales" class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">$1,357,881.66</div>
+          <div id="kpi-sales-sub" class="mt-1.5 text-xs font-medium text-slate-500 flex items-center gap-1">
+            <span>100.0% del ingreso total</span>
+          </div>
+        </div>
+
+        <!-- KPI 2: Utilidad Bruta -->
+        <div class="card-bi p-4 relative overflow-hidden">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Utilidad Bruta</span>
+            <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <i data-lucide="trending-up" class="w-4 h-4"></i>
+            </div>
+          </div>
+          <div id="kpi-profit" class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">$813,713.76</div>
+          <div id="kpi-profit-sub" class="mt-1.5 text-xs font-medium text-emerald-600 flex items-center gap-1">
+            <span>Contribución neta post-costo</span>
+          </div>
+        </div>
+
+        <!-- KPI 3: Margen Bruto -->
+        <div class="card-bi p-4 relative overflow-hidden">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Margen Bruto</span>
+            <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+              <i data-lucide="percent" class="w-4 h-4"></i>
+            </div>
+          </div>
+          <div id="kpi-margin" class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">59.93%</div>
+          <div id="kpi-margin-sub" class="mt-1.5 text-xs font-medium text-slate-500">
+            Meta corporativa: ≥ 60.0%
+          </div>
+        </div>
+
+        <!-- KPI 4: Ticket Promedio -->
+        <div class="card-bi p-4 relative overflow-hidden">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Ticket Promedio</span>
+            <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+              <i data-lucide="receipt" class="w-4 h-4"></i>
+            </div>
+          </div>
+          <div id="kpi-ticket" class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">$29.58</div>
+          <div id="kpi-ticket-sub" class="mt-1.5 text-xs font-medium text-slate-500">
+            Ingreso medio por orden
+          </div>
+        </div>
+
+        <!-- KPI 5: Número de Clientes -->
+        <div class="card-bi p-4 relative overflow-hidden">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Número de Clientes</span>
+            <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+              <i data-lucide="users" class="w-4 h-4"></i>
+            </div>
+          </div>
+          <div id="kpi-customers" class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">1,000</div>
+          <div id="kpi-customers-sub" class="mt-1.5 text-xs font-medium text-slate-500">
+            Clientes únicos con compra
+          </div>
+        </div>
+
+        <!-- KPI 6: Número de Transacciones -->
+        <div class="card-bi p-4 relative overflow-hidden">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Transacciones</span>
+            <div class="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
+              <i data-lucide="shopping-bag" class="w-4 h-4"></i>
+            </div>
+          </div>
+          <div id="kpi-tx" class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">45,900</div>
+          <div id="kpi-tx-sub" class="mt-1.5 text-xs font-medium text-slate-500">
+            Órdenes procesadas
+          </div>
+        </div>
+      </div>
+
+      <!-- Fila 1 de Gráficos: Evolución Temporal + Ventas por Sucursal -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Gráfico 1: Evolución Temporal -->
+        <div class="card-bi p-5 lg:col-span-7">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+            <div>
+              <h3 class="text-sm sm:text-base font-bold text-slate-900">Evolución Temporal de Ventas y Utilidad Bruta</h3>
+              <p class="text-xs text-slate-500">Trayectoria mensual comparativa (2024 vs. 2025)</p>
+            </div>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+              <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+              Var. 2025 vs 2024: -26.75%
+            </span>
+          </div>
+          <div class="chart-container">
+            <canvas id="chart-timeline"></canvas>
+          </div>
+        </div>
+
+        <!-- Gráfico 2: Ventas y Margen por Sucursal -->
+        <div class="card-bi p-5 lg:col-span-5">
+          <div class="flex items-center justify-between gap-2 mb-4">
+            <div>
+              <h3 class="text-sm sm:text-base font-bold text-slate-900">Ventas y Margen Bruto por Sucursal</h3>
+              <p class="text-xs text-slate-500">Ranking de las 8 unidades operativas</p>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="chart-branches"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fila 2 de Gráficos: Ventas por Ciudad + Ventas por Segmento + Top 10 Productos -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Gráfico 3: Ventas por Ciudad -->
+        <div class="card-bi p-5 lg:col-span-4">
+          <div class="mb-4">
+            <h3 class="text-sm sm:text-base font-bold text-slate-900">Ventas por Ciudad</h3>
+            <p class="text-xs text-slate-500">Participación regional en Texas</p>
+          </div>
+          <div class="chart-container">
+            <canvas id="chart-cities"></canvas>
+          </div>
+        </div>
+
+        <!-- Gráfico 4: Ventas y Rentabilidad por Segmento -->
+        <div class="card-bi p-5 lg:col-span-4">
+          <div class="mb-4">
+            <h3 class="text-sm sm:text-base font-bold text-slate-900">Ventas por Segmento de Clientes</h3>
+            <p class="text-xs text-slate-500">Distribución de ingresos y utilidad</p>
+          </div>
+          <div class="chart-container">
+            <canvas id="chart-segments"></canvas>
+          </div>
+        </div>
+
+        <!-- Gráfico 5: Top 10 Productos -->
+        <div class="card-bi p-5 lg:col-span-4">
+          <div class="flex items-center justify-between gap-2 mb-4">
+            <div>
+              <h3 class="text-sm sm:text-base font-bold text-slate-900">Top 10 Productos</h3>
+              <p class="text-xs text-slate-500" id="top-products-subtitle">Ordenados por Utilidad Bruta ($)</p>
+            </div>
+            <div class="inline-flex rounded-lg bg-slate-100 p-0.5 text-xs">
+              <button onclick="setProductRankMode('profit')" id="btn-rank-profit" class="px-2 py-1 rounded-md font-semibold bg-white text-slate-900 shadow-xs cursor-pointer">Utilidad</button>
+              <button onclick="setProductRankMode('sales')" id="btn-rank-sales" class="px-2 py-1 rounded-md font-semibold text-slate-600 cursor-pointer">Ventas</button>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="chart-products"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla Ejecutiva: Desempeño Operativo y Financiero por Sucursal -->
+      <div class="card-bi overflow-hidden">
+        <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 class="text-base font-bold text-slate-900">Matriz de Desempeño Financiero y Operativo por Sucursal</h3>
+            <p class="text-xs text-slate-500">Incluye indicadores de rentabilidad, descuentos aplicados y tiempos operativos de cocina y reparto</p>
+          </div>
+          <span class="text-xs font-medium text-slate-500">Semáforo de alerta: Margen &lt; 59% o Entrega &gt; 35 min</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                <th class="py-3 px-4">Sucursal</th>
+                <th class="py-3 px-4">Ciudad</th>
+                <th class="py-3 px-4 text-right">Transacciones</th>
+                <th class="py-3 px-4 text-right">Ventas Netas</th>
+                <th class="py-3 px-4 text-right">Utilidad Bruta</th>
+                <th class="py-3 px-4 text-right">Margen Bruto</th>
+                <th class="py-3 px-4 text-right">Ticket Prom.</th>
+                <th class="py-3 px-4 text-right">Descuento Prom.</th>
+                <th class="py-3 px-4 text-right">Prep. (min)</th>
+                <th class="py-3 px-4 text-right">Entrega (min)</th>
+                <th class="py-3 px-4 text-center">Estado</th>
+              </tr>
+            </thead>
+            <tbody id="table-branches-body" class="divide-y divide-slate-100 text-xs sm:text-sm">
+              <!-- Renderizado dinámicamente -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- PESTAÑA 2: CARGA DE DATOS (EXCEL / CSV)                               -->
+    <!-- ===================================================================== -->
+    <section id="view-data" class="hidden space-y-6">
+      <div class="card-bi p-6">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+          <div>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 mb-2">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              Actualización Dinámica Sin Modificar Código
+            </span>
+            <h2 class="text-xl font-extrabold text-slate-900">Gestor de Bases de Datos Comerciales (Excel .xlsx / .csv)</h2>
+            <p class="text-sm text-slate-600 mt-1 max-w-3xl">
+              Sustituya el archivo de <strong>Ventas</strong> (y opcionalmente los catálogos maestros de <strong>Productos</strong> y <strong>Clientes</strong>). Al procesar los nuevos archivos, todos los KPIs, filtros, gráficas y diagnósticos del Asistente IA se recalcularán automáticamente.
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2.5 shrink-0">
+            <button onclick="downloadSampleTemplates()" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-800 hover:bg-slate-200 transition cursor-pointer">
+              <i data-lucide="download" class="w-4 h-4"></i>
+              <span>Descargar Plantillas Excel</span>
+            </button>
+            <button onclick="restoreOriginalDataset()" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-red-600 text-white hover:bg-red-700 shadow-xs transition cursor-pointer">
+              <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+              <span>Restaurar Dataset Original</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 3 Zonas de Carga Independientes -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mt-6">
+          <!-- Archivo 1: Ventas -->
+          <div class="border-2 border-dashed border-slate-300 hover:border-red-500 rounded-2xl p-5 bg-slate-50/70 transition flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <span class="px-2.5 py-1 rounded-md text-xs font-bold bg-red-100 text-red-800">1. Tabla Principal (Requerida)</span>
+                <i data-lucide="file-spreadsheet" class="w-5 h-5 text-red-600"></i>
+              </div>
+              <h3 class="text-base font-bold text-slate-900">San_Francisco_Crust_Pizza_Ventas</h3>
+              <p class="text-xs text-slate-500 mt-1">
+                Columnas esperadas: <code class="text-[11px] bg-white px-1 py-0.5 rounded border">VentaID, Fecha, Ciudad, Sucursal, ClienteID, ProductoID, Cantidad, PrecioUnitario, CostoUnitario, DescuentoPct, VentaNeta, CostoTotal, UtilidadBruta, Canal, FormaPago, TiempoEntregaMin, TiempoPreparacionMin</code>
+              </p>
+            </div>
+            <div class="mt-5">
+              <label class="w-full flex flex-col items-center justify-center px-4 py-3 bg-white border border-slate-200 rounded-xl shadow-2xs cursor-pointer hover:bg-red-50 hover:border-red-300 transition">
+                <span class="text-xs font-bold text-slate-800 flex items-center gap-2">
+                  <i data-lucide="upload-cloud" class="w-4 h-4 text-red-600"></i>
+                  Seleccionar Archivo de Ventas (.xlsx / .csv)
+                </span>
+                <input type="file" accept=".xlsx,.xls,.csv" onchange="handleFileUpload(event, 'sales')" class="hidden" />
+              </label>
+              <p id="status-upload-sales" class="text-[11px] font-medium text-emerald-700 mt-2 flex items-center gap-1">
+                <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+                Cargado: Dataset Oficial (45,900 registros)
+              </p>
+            </div>
+          </div>
+
+          <!-- Archivo 2: Productos -->
+          <div class="border-2 border-dashed border-slate-300 hover:border-amber-500 rounded-2xl p-5 bg-slate-50/70 transition flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <span class="px-2.5 py-1 rounded-md text-xs font-bold bg-amber-100 text-amber-800">2. Catálogo Maestro</span>
+                <i data-lucide="package" class="w-5 h-5 text-amber-600"></i>
+              </div>
+              <h3 class="text-base font-bold text-slate-900">San_Francisco_Crust_Pizza_Productos</h3>
+              <p class="text-xs text-slate-500 mt-1">
+                Columnas esperadas: <code class="text-[11px] bg-white px-1 py-0.5 rounded border">ProductoID, NombreProducto, Categoria, Tamano, PrecioLista, CostoEstandar, MargenObjetivoPct, Activo</code>
+              </p>
+            </div>
+            <div class="mt-5">
+              <label class="w-full flex flex-col items-center justify-center px-4 py-3 bg-white border border-slate-200 rounded-xl shadow-2xs cursor-pointer hover:bg-amber-50 hover:border-amber-300 transition">
+                <span class="text-xs font-bold text-slate-800 flex items-center gap-2">
+                  <i data-lucide="upload-cloud" class="w-4 h-4 text-amber-600"></i>
+                  Seleccionar Archivo de Productos (.xlsx / .csv)
+                </span>
+                <input type="file" accept=".xlsx,.xls,.csv" onchange="handleFileUpload(event, 'products')" class="hidden" />
+              </label>
+              <p id="status-upload-products" class="text-[11px] font-medium text-emerald-700 mt-2 flex items-center gap-1">
+                <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+                Cargado: Catálogo Oficial (44 SKUs)
+              </p>
+            </div>
+          </div>
+
+          <!-- Archivo 3: Clientes -->
+          <div class="border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-2xl p-5 bg-slate-50/70 transition flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <span class="px-2.5 py-1 rounded-md text-xs font-bold bg-indigo-100 text-indigo-800">3. Maestro CRM</span>
+                <i data-lucide="users" class="w-5 h-5 text-indigo-600"></i>
+              </div>
+              <h3 class="text-base font-bold text-slate-900">San_Francisco_Crust_Pizza_Clientes</h3>
+              <p class="text-xs text-slate-500 mt-1">
+                Columnas esperadas: <code class="text-[11px] bg-white px-1 py-0.5 rounded border">ClienteID, Nombre, Ciudad, SucursalPreferida, Segmento, CanalPreferido, FrecuenciaMensual, GastoAcumulado, NPS, ClienteActivo</code>
+              </p>
+            </div>
+            <div class="mt-5">
+              <label class="w-full flex flex-col items-center justify-center px-4 py-3 bg-white border border-slate-200 rounded-xl shadow-2xs cursor-pointer hover:bg-indigo-50 hover:border-indigo-300 transition">
+                <span class="text-xs font-bold text-slate-800 flex items-center gap-2">
+                  <i data-lucide="upload-cloud" class="w-4 h-4 text-indigo-600"></i>
+                  Seleccionar Archivo de Clientes (.xlsx / .csv)
+                </span>
+                <input type="file" accept=".xlsx,.xls,.csv" onchange="handleFileUpload(event, 'customers')" class="hidden" />
+              </label>
+              <p id="status-upload-customers" class="text-[11px] font-medium text-emerald-700 mt-2 flex items-center gap-1">
+                <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+                Cargado: Maestro CRM Oficial (1,000 clientes)
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Vista Previa de Datos Cargados -->
+        <div class="mt-6 pt-5 border-t border-slate-100">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-slate-900">Muestra de Registros Activos en Memoria (Primeras 8 filas)</h3>
+            <span id="preview-record-count" class="text-xs font-semibold text-slate-500">Total en motor analítico: 45,900 transacciones</span>
+          </div>
+          <div class="overflow-x-auto border border-slate-200 rounded-xl">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+                <tr>
+                  <th class="py-2.5 px-3">VentaID</th>
+                  <th class="py-2.5 px-3">Fecha</th>
+                  <th class="py-2.5 px-3">Ciudad</th>
+                  <th class="py-2.5 px-3">Sucursal</th>
+                  <th class="py-2.5 px-3">Segmento</th>
+                  <th class="py-2.5 px-3">Producto</th>
+                  <th class="py-2.5 px-3 text-right">Venta Neta</th>
+                  <th class="py-2.5 px-3 text-right">Utilidad Bruta</th>
+                  <th class="py-2.5 px-3 text-right">Entrega (min)</th>
+                </tr>
+              </thead>
+              <tbody id="data-preview-tbody" class="divide-y divide-slate-100">
+                <!-- Llenado por JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- PESTAÑA 3: ASISTENTE IA & EVALUACIÓN CRÍTICA                          -->
+    <!-- ===================================================================== -->
+    <section id="view-ai" class="hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Panel Izquierdo: Asistente Comercial IA -->
+        <div class="lg:col-span-6 space-y-5">
+          <div class="card-bi p-5">
+            <div class="flex items-start justify-between gap-3 pb-4 border-b border-slate-100">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                  <i data-lucide="bot" class="w-6 h-6"></i>
+                </div>
+                <div>
+                  <h2 class="text-base font-extrabold text-slate-900">Asistente Comercial IA (Motor Analítico)</h2>
+                  <p class="text-xs text-slate-500">Genera diagnósticos y recomendaciones basados en el filtro activo del dashboard</p>
+                </div>
+              </div>
+              <button onclick="generateAIRecommendations()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900 text-white hover:bg-slate-800 transition cursor-pointer shrink-0">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400"></i>
+                <span>Recalcular IA</span>
+              </button>
+            </div>
+
+            <!-- Contexto que está leyendo la IA -->
+            <div id="ai-context-pill" class="mt-3 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700">
+              <!-- Actualizado dinámicamente -->
+            </div>
+
+            <!-- Chat Interactivo con el Asistente -->
+            <div class="mt-4">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Consulta Estratégica Interactiva</h3>
+              <div id="ai-chat-history" class="h-64 overflow-y-auto p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-3 text-xs sm:text-sm">
+                <!-- Mensajes del chat -->
+              </div>
+
+              <!-- Prompts Rápidos -->
+              <div class="flex flex-wrap gap-1.5 mt-2.5">
+                <button onclick="askQuickAIPrompt('¿Por qué cayó Dallas en 2025 y cómo afecta el margen?')" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition cursor-pointer">
+                  ¿Por qué cayó Dallas en 2025?
+                </button>
+                <button onclick="askQuickAIPrompt('¿Qué productos debo impulsar o retirar del menú?')" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition cursor-pointer">
+                  ¿Qué productos impulsar o retirar?
+                </button>
+                <button onclick="askQuickAIPrompt('¿Cómo crecer en Corporativo y retener Estudiantes?')" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition cursor-pointer">
+                  Estrategia Corporativo vs Estudiantes
+                </button>
+              </div>
+
+              <!-- Input de Pregunta -->
+              <form onsubmit="handleAIChatSubmit(event)" class="mt-3 flex gap-2">
+                <input type="text" id="ai-chat-input" placeholder="Pregunte al asistente sobre ventas, sucursales, márgenes o clientes..." class="flex-1 px-3.5 py-2 text-xs sm:text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                <button type="submit" class="px-4 py-2 rounded-xl bg-amber-600 text-white text-xs sm:text-sm font-bold hover:bg-amber-700 transition cursor-pointer flex items-center gap-1.5">
+                  <span>Consultar</span>
+                  <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel Derecho: Matriz de Evaluación Crítica de Recomendaciones IA -->
+        <div class="lg:col-span-6 space-y-5">
+          <div class="card-bi p-5">
+            <div class="flex items-start justify-between gap-3 pb-4 border-b border-slate-100">
+              <div>
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 mb-1">
+                  Gobernanza Humana &amp; Juicio Directivo
+                </span>
+                <h2 class="text-base font-extrabold text-slate-900">Evaluación Crítica de Recomendaciones IA</h2>
+                <p class="text-xs text-slate-500">Audite viabilidad operativa, impacto financiero y sesgos antes de ejecutar</p>
+              </div>
+              <div class="text-right shrink-0">
+                <div class="text-[11px] font-semibold text-slate-500">Índice de Validez</div>
+                <div id="ai-audit-score" class="text-lg font-extrabold text-emerald-600">84%</div>
+              </div>
+            </div>
+
+            <!-- Lista de Recomendaciones Generadas para Evaluar -->
+            <div id="ai-recommendations-list" class="mt-4 space-y-4 max-h-[540px] overflow-y-auto pr-1">
+              <!-- Renderizado dinámicamente -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- PESTAÑA 4: ANÁLISIS DEL CASO (5 PREGUNTAS)                           -->
+    <!-- ===================================================================== -->
+    <section id="view-case" class="hidden space-y-6">
+      <!-- Encabezado Ejecutivo del Informe -->
+      <div class="card-bi p-6 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white border-0">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-600 text-white mb-3">
+              <i data-lucide="award" class="w-3.5 h-3.5"></i>
+              Informe Ejecutivo de Dirección Comercial — San Francisco Crust Pizza
+            </span>
+            <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight">
+              Resolución Analítica del Caso de Estudio (5 Preguntas Clave)
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-300 mt-1.5 max-w-3xl">
+              Respuestas fundamentadas exclusivamente en la evidencia empírica extraída del cuadro de mando (45,900 transacciones, 1,000 clientes y 44 SKUs entre enero 2024 y diciembre 2025). Utilice los botones de verificación para comprobar cada hallazgo directamente en el dashboard.
+            </p>
+          </div>
+          <div class="bg-white/10 backdrop-blur rounded-xl p-4 border border-white/15 shrink-0 text-xs space-y-1">
+            <div class="text-slate-300">Ventas Totales: <strong class="text-white">$1,357,881.66</strong></div>
+            <div class="text-slate-300">Utilidad Bruta: <strong class="text-emerald-400">$813,713.76 (59.93%)</strong></div>
+            <div class="text-slate-300">Ticket Promedio: <strong class="text-amber-300">$29.58</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PREGUNTA 1 -->
+      <article class="card-bi p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+          <div class="flex items-start gap-3">
+            <span class="w-8 h-8 rounded-lg bg-red-600 text-white font-extrabold text-sm flex items-center justify-center shrink-0">1</span>
+            <div>
+              <h3 class="text-base sm:text-lg font-extrabold text-slate-900">
+                ¿Cuáles son los cinco hallazgos más importantes encontrados en la información comercial de San Francisco Crust Pizza?
+              </h3>
+              <p class="text-xs text-slate-500">Evidencia cuantitativa extraída directamente del dashboard ejecutivo</p>
+            </div>
+          </div>
+          <button onclick="applyCaseFilter({ period: '2025', city: 'ALL', branch: 'ALL', segment: 'ALL', product: 'ALL' })" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-slate-100 text-slate-800 hover:bg-red-50 hover:text-red-700 transition cursor-pointer shrink-0">
+            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+            <span>Ver evidencia 2025 en Dashboard</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-5">
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+            <div class="text-xs font-extrabold text-red-700 uppercase mb-1">Hallazgo 1 · Contracción Interanual</div>
+            <h4 class="text-sm font-bold text-slate-900 mb-1.5">Caída de ingresos del -26.75% en 2025</h4>
+            <p class="text-xs text-slate-600 leading-relaxed">
+              Las ventas pasaron de <strong>$783,776.26</strong> en 2024 (26,400 transacciones) a <strong>$574,105.40</strong> en 2025 (19,500 transacciones), una pérdida neta de <strong>$209,670.86</strong> (-6,900 órdenes) impulsada por menor frecuencia de compra y pérdida de clientes activos.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+            <div class="text-xs font-extrabold text-amber-700 uppercase mb-1">Hallazgo 2 · Crisis Operativa en Dallas</div>
+            <h4 class="text-sm font-bold text-slate-900 mb-1.5">Colapso logístico y erosión de margen en 2025</h4>
+            <p class="text-xs text-slate-600 leading-relaxed">
+              En Dallas (North y Downtown), el tiempo promedio de entrega escaló de <strong>30.28 min</strong> (2024) a <strong>54.87 min</strong> (2025). Para compensar demoras, se elevaron los descuentos del <strong>1.54%</strong> al <strong>10.06%</strong>, reduciendo el margen bruto de Dallas en 2025 a un crítico <strong>56.47%</strong>.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+            <div class="text-xs font-extrabold text-blue-700 uppercase mb-1">Hallazgo 3 · Concentración de Demanda</div>
+            <h4 class="text-sm font-bold text-slate-900 mb-1.5">71.09% de ingresos en 2 segmentos clave</h4>
+            <p class="text-xs text-slate-600 leading-relaxed">
+              Los segmentos <strong>Profesional</strong> ($546,327.47; 40.23%) y <strong>Familiar</strong> ($418,997.00; 30.86%) generan conjuntamente <strong>$965,324.47</strong> en ventas y <strong>$578,612.80</strong> en utilidad bruta, sosteniendo la rentabilidad base de la cadena.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+            <div class="text-xs font-extrabold text-indigo-700 uppercase mb-1">Hallazgo 4 · Fuga en Segmento Estudiante</div>
+            <h4 class="text-sm font-bold text-slate-900 mb-1.5">Tasa de retención crítica del 25.13%</h4>
+            <p class="text-xs text-slate-600 leading-relaxed">
+              De los 191 clientes registrados en el segmento <strong>Estudiante</strong>, solo <strong>48 permanecen activos (25.13%)</strong>, registrando el NPS más bajo de la empresa (<strong>4.46</strong>), con alta sensibilidad a tiempos de espera prolongados.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 md:col-span-2 lg:col-span-2">
+            <div class="text-xs font-extrabold text-emerald-700 uppercase mb-1">Hallazgo 5 · Estructura del Mix y Catálogo Inactivo</div>
+            <h4 class="text-sm font-bold text-slate-900 mb-1.5">Alta dependencia de Pizzas (59.02% de utilidad) y 3 SKUs inactivos con historial relevante</h4>
+            <p class="text-xs text-slate-600 leading-relaxed">
+              La categoría <strong>Pizzas</strong> aporta <strong>$480,236.90</strong> de utilidad bruta (59.02% del total), seguida por Entradas (16.19%), Bebidas (13.38%) y Postres (11.41%). Asimismo, se detectan 3 productos marcados como <em>Inactivos</em> en el catálogo maestro (<strong>P018 Buffalo L</strong>, <strong>P029 Refresco M</strong> y <strong>P041 Cookie Gigante</strong>) que acumularon <strong>$71,951.10</strong> en ventas históricas sin reemplazo comercial formal.
+            </p>
+          </div>
+        </div>
+      </article>
+
+      <!-- PREGUNTA 2 -->
+      <article class="card-bi p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+          <div class="flex items-start gap-3">
+            <span class="w-8 h-8 rounded-lg bg-slate-900 text-white font-extrabold text-sm flex items-center justify-center shrink-0">2</span>
+            <div>
+              <h3 class="text-base sm:text-lg font-extrabold text-slate-900">
+                ¿Qué sucursal presenta el mejor desempeño y cuál presenta el peor?
+              </h3>
+              <p class="text-xs text-slate-500">Comparativa integral por ventas, utilidad bruta, margen, ticket promedio y tiempos operativos</p>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="applyCaseFilter({ period: 'ALL', city: 'Austin', branch: 'Austin South', segment: 'ALL', product: 'ALL' })" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition cursor-pointer">
+              <span>Filtrar Austin South</span>
+            </button>
+            <button onclick="applyCaseFilter({ period: 'ALL', city: 'Dallas', branch: 'Dallas Downtown', segment: 'ALL', product: 'ALL' })" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition cursor-pointer">
+              <span>Filtrar Dallas Downtown</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+          <!-- Mejor Sucursal -->
+          <div class="p-5 rounded-xl bg-emerald-50/60 border border-emerald-200">
+            <div class="flex items-center justify-between mb-2">
+              <span class="px-2.5 py-0.5 rounded-md text-xs font-extrabold bg-emerald-600 text-white">MEJOR DESEMPEÑO</span>
+              <span class="text-xs font-bold text-emerald-800">Austin, TX</span>
+            </div>
+            <h4 class="text-lg font-extrabold text-slate-900">Sucursal Austin South</h4>
+            <ul class="mt-3 space-y-1.5 text-xs text-slate-700">
+              <li>• <strong>Ventas Totales:</strong> $174,509.82 (1° lugar de la cadena, 12.85% del total).</li>
+              <li>• <strong>Utilidad Bruta:</strong> $105,202.01 (líder absoluta en generación de caja).</li>
+              <li>• <strong>Ticket Promedio:</strong> $30.15 (el más alto entre las 8 sucursales).</li>
+              <li>• <strong>Margen Bruto:</strong> 60.28% (por encima del estándar corporativo del 60%).</li>
+              <li>• <strong>Eficiencia Operativa:</strong> 13.99 min de preparación y 29.98 min de entrega, con bajo descuento promocional (2.01%). <em>(Nota: SA Downtown ocupa el 2° lugar muy cercano con $173,400.65 y 60.37% de margen).</em></li>
+            </ul>
+          </div>
+
+          <!-- Peor Sucursal -->
+          <div class="p-5 rounded-xl bg-red-50/60 border border-red-200">
+            <div class="flex items-center justify-between mb-2">
+              <span class="px-2.5 py-0.5 rounded-md text-xs font-extrabold bg-red-600 text-white">PEOR DESEMPEÑO</span>
+              <span class="text-xs font-bold text-red-800">Dallas, TX</span>
+            </div>
+            <h4 class="text-lg font-extrabold text-slate-900">Sucursal Dallas Downtown (y alerta en Dallas North)</h4>
+            <ul class="mt-3 space-y-1.5 text-xs text-slate-700">
+              <li>• <strong>Ventas Totales:</strong> $164,490.35 (8° lugar, último puesto de la red, 12.11%).</li>
+              <li>• <strong>Utilidad Bruta:</strong> $96,605.77 ($8,596.24 menos utilidad que Austin South).</li>
+              <li>• <strong>Margen Bruto:</strong> 58.73% acumulado (el más bajo de la empresa; cayó a <strong>56.47% en 2025</strong>).</li>
+              <li>• <strong>Deterioro Logístico y Comercial:</strong> Tiempo de entrega promedio de 40.62 min (54.87 min en 2025) y descuento promedio elevado al 5.18% (10.06% en 2025). <em>(Dallas North comparte el deterioro con el menor ticket promedio de la cadena: $28.54 y entrega de 41.09 min).</em></li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <!-- PREGUNTA 3 -->
+      <article class="card-bi p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+          <div class="flex items-start gap-3">
+            <span class="w-8 h-8 rounded-lg bg-slate-900 text-white font-extrabold text-sm flex items-center justify-center shrink-0">3</span>
+            <div>
+              <h3 class="text-base sm:text-lg font-extrabold text-slate-900">
+                ¿Qué productos generan la mayor rentabilidad y cuáles deberían revisarse por su bajo desempeño?
+              </h3>
+              <p class="text-xs text-slate-500">Evaluación por contribución absoluta de utilidad bruta ($), margen real (%) y rotación</p>
+            </div>
+          </div>
+          <button onclick="applyCaseFilter({ period: 'ALL', city: 'ALL', branch: 'ALL', segment: 'ALL', product: 'P013' })" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-slate-100 text-slate-800 hover:bg-amber-50 hover:text-amber-800 transition cursor-pointer shrink-0">
+            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+            <span>Ver Producto Líder (P013 Mexicana M)</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+            <h4 class="text-sm font-extrabold text-emerald-700 mb-2 flex items-center gap-1.5">
+              <i data-lucide="trending-up" class="w-4 h-4"></i>
+              Productos de Mayor Rentabilidad (Estrellas del Portafolio)
+            </h4>
+            <ul class="space-y-2 text-xs text-slate-700">
+              <li><strong>1. Mexicana M (P013):</strong> Líder absoluto en utilidad bruta con <strong>$36,129.67</strong> ($56,156.49 en ventas; margen real <strong>64.34%</strong>; 1,929 unidades).</li>
+              <li><strong>2. 4 Quesos M (P015):</strong> Segunda mayor contribución con <strong>$30,133.34</strong> de utilidad ($49,544.57 en ventas; margen <strong>60.82%</strong>).</li>
+              <li><strong>3. Vegetariana L (P010):</strong> Genera <strong>$29,967.90</strong> de utilidad con un destacado margen real del <strong>65.34%</strong>.</li>
+              <li><strong>4. BBQ Chicken L (P012) y Boneless Único (P023):</strong> Aportan <strong>$28,835.84</strong> y <strong>$26,316.02</strong> respectivamente (Boneless es la entrada más rentable con <strong>64.72%</strong> de margen).</li>
+              <li><strong>Líder en Margen Porcentual:</strong> <em>Refresco L (P030)</em> alcanza un <strong>65.80%</strong> de margen bruto ($12,920.89 de utilidad), ideal para estrategias de venta cruzada.</li>
+            </ul>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+            <h4 class="text-sm font-extrabold text-red-700 mb-2 flex items-center gap-1.5">
+              <i data-lucide="alert-circle" class="w-4 h-4"></i>
+              Productos a Revisar por Bajo Desempeño o Margen
+            </h4>
+            <ul class="space-y-2 text-xs text-slate-700">
+              <li><strong>1. Mozzarella Sticks Único (P027):</strong> Menor utilidad bruta de todo el catálogo con apenas <strong>$6,014.38</strong> ($10,759.63 en ventas; 55.90% de margen).</li>
+              <li><strong>2. Alitas 12 pzas Único (P025):</strong> Baja utilidad total (<strong>$6,768.30</strong>) y margen real comprimido al <strong>56.05%</strong> por alto costo de insumo proteico.</li>
+              <li><strong>3. Pay de Manzana Único (P042):</strong> Menor aporte en postres con <strong>$8,031.20</strong> de utilidad bruta ($14,225.88 en ventas).</li>
+              <li><strong>4. Erosión de Margen en Buffalo M (P017) y Cerveza (P034):</strong> Registran los márgenes porcentuales más bajos de la cadena con <strong>53.42%</strong> y <strong>53.68%</strong> respectivamente (por debajo de su meta objetivo).</li>
+              <li><strong>5. SKUs Inactivos sin Sustitución (P018, P029, P041):</strong> Requieren auditoría de inventario y relanzamiento o baja definitiva.</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <!-- PREGUNTA 4 -->
+      <article class="card-bi p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+          <div class="flex items-start gap-3">
+            <span class="w-8 h-8 rounded-lg bg-slate-900 text-white font-extrabold text-sm flex items-center justify-center shrink-0">4</span>
+            <div>
+              <h3 class="text-base sm:text-lg font-extrabold text-slate-900">
+                ¿Qué segmento de clientes representa la mejor oportunidad de crecimiento para la empresa?
+              </h3>
+              <p class="text-xs text-slate-500">Análisis de penetración, frecuencia, ticket promedio, LTV y satisfacción (NPS)</p>
+            </div>
+          </div>
+          <button onclick="applyCaseFilter({ period: 'ALL', city: 'ALL', branch: 'ALL', segment: 'Corporativo', product: 'ALL' })" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition cursor-pointer shrink-0">
+            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+            <span>Filtrar Segmento Corporativo</span>
+          </button>
+        </div>
+
+        <div class="mt-4 space-y-3 text-xs sm:text-sm text-slate-700 leading-relaxed">
+          <p>
+            Desde una perspectiva estratégica de <strong>rentabilidad y expansión de valor de vida del cliente (LTV)</strong>, el segmento <strong class="text-indigo-700">Corporativo</strong> representa la mejor oportunidad de crecimiento estructural para San Francisco Crust Pizza, complementado tácticamente por la recuperación del segmento <strong>Estudiante</strong>:
+          </p>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+            <div class="p-4 rounded-xl bg-indigo-50/70 border border-indigo-200">
+              <div class="text-xs font-extrabold text-indigo-800 uppercase mb-1">1. Baja Penetración Actual (9.46%)</div>
+              <p class="text-xs text-slate-700">
+                Con apenas <strong>95 clientes</strong> (9.5% de la base) y <strong>$128,400.37</strong> en ventas (4,315 órdenes), el segmento Corporativo tiene el mayor espacio sin explotar en las 4 ciudades de Texas.
+              </p>
+            </div>
+            <div class="p-4 rounded-xl bg-indigo-50/70 border border-indigo-200">
+              <div class="text-xs font-extrabold text-indigo-800 uppercase mb-1">2. Máximo Valor y Frecuencia</div>
+              <p class="text-xs text-slate-700">
+                Posee el <strong>mayor gasto histórico promedio por cliente ($7,844.91)</strong>, la mayor frecuencia mensual (<strong>3.25 pedidos/mes</strong>), el ticket promedio más alto (<strong>$29.76</strong>) y el menor descuento requerido (<strong>2.43%</strong>).
+              </p>
+            </div>
+            <div class="p-4 rounded-xl bg-indigo-50/70 border border-indigo-200">
+              <div class="text-xs font-extrabold text-indigo-800 uppercase mb-1">3. Máxima Satisfacción (NPS 8.41)</div>
+              <p class="text-xs text-slate-700">
+                Registra el <strong>NPS más alto de toda la compañía (8.41)</strong> frente al promedio general de 6.32, demostrando alta lealtad y disposición a contratar planes recurrentes de catering y almuerzos ejecutivos.
+              </p>
+            </div>
+          </div>
+          <p class="text-xs text-slate-600 pt-1">
+            <em>Nota complementaria:</em> En el corto plazo, el segmento <strong>Estudiante</strong> (191 clientes, $264,156.82 en ventas) constituye la mayor oportunidad de <strong>recuperación rápida de volumen</strong>, ya que revertir su deserción del 74.87% (causada por tiempos de espera) permitiría recuperar rápidamente transacciones perdidas en 2025.
+          </p>
+        </div>
+      </article>
+
+      <!-- PREGUNTA 5 -->
+      <article class="card-bi p-6">
+        <div class="flex items-start gap-3 pb-4 border-b border-slate-100">
+          <span class="w-8 h-8 rounded-lg bg-red-600 text-white font-extrabold text-sm flex items-center justify-center shrink-0">5</span>
+          <div>
+            <h3 class="text-base sm:text-lg font-extrabold text-slate-900">
+              Como Director Comercial, proponga cinco decisiones estratégicas que implementaría para mejorar el desempeño de la empresa.
+            </h3>
+            <p class="text-xs text-slate-500">Plan de acción ejecutivo sustentado en evidencia del dashboard</p>
+          </div>
+        </div>
+
+        <div class="mt-5 space-y-3">
+          <div class="p-4 rounded-xl border border-slate-200 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span class="text-xs font-extrabold text-red-600 uppercase">Decisión 1 · Reestructuración Logística y Control de Descuentos en Dallas</span>
+              <p class="text-xs text-slate-700 mt-1">
+                <strong>Acción:</strong> Rediseñar zonas de reparto y ampliar flota de última milla en <em>Dallas North</em> y <em>Dallas Downtown</em> para reducir el tiempo de entrega de <strong>54.87 min</strong> a menos de <strong>32 min</strong>, estableciendo un tope máximo de descuento del <strong>3%</strong> (frente al 10.06% actual).<br/>
+                <strong>Impacto esperado:</strong> Recuperar +3.5 puntos de margen bruto en Dallas (~$12,000+ USD adicionales en utilidad bruta anual) y frenar la pérdida de clientes.
+              </p>
+            </div>
+          </div>
+
+          <div class="p-4 rounded-xl border border-slate-200 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span class="text-xs font-extrabold text-indigo-600 uppercase">Decisión 2 · Programa B2B "Crust Corporate Catering"</span>
+              <p class="text-xs text-slate-700 mt-1">
+                <strong>Acción:</strong> Crear una fuerza de ventas B2B enfocada en parques empresariales de Houston, Austin, San Antonio y Dallas con suscripciones semanales, facturación centralizada y pedidos programados.<br/>
+                <strong>Sustento:</strong> Capitaliza el segmento con mayor NPS (<strong>8.41</strong>) y frecuencia (<strong>3.25 pedidos/mes</strong>), buscando duplicar su participación del <strong>9.46% al 18%</strong> de las ventas totales.
+              </p>
+            </div>
+          </div>
+
+          <div class="p-4 rounded-xl border border-slate-200 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span class="text-xs font-extrabold text-amber-600 uppercase">Decisión 3 · Ingeniería de Menú, Combos de Alto Margen y Depuración de Catálogo</span>
+              <p class="text-xs text-slate-700 mt-1">
+                <strong>Acción:</strong> Empaquetar las pizzas estrella (<em>Mexicana M</em>, <em>4 Quesos M</em>, <em>Vegetariana L</em>) con acompañamientos de alto margen como <em>Refresco L</em> (<strong>65.80%</strong> margen) y <em>Boneless</em> (<strong>64.72%</strong>); renegociar costos o ajustar precios en <em>Buffalo M</em> (53.42%) y <em>Alitas 12 pzas</em> (56.05%), y dar de baja definitiva o relanzar los 3 SKUs inactivos (P018, P029, P041).<br/>
+                <strong>Impacto esperado:</strong> Elevar el ticket promedio de <strong>$29.58 a $32.20</strong> y el margen consolidado por encima del <strong>61.5%</strong>.
+              </p>
+            </div>
+          </div>
+
+          <div class="p-4 rounded-xl border border-slate-200 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span class="text-xs font-extrabold text-emerald-600 uppercase">Decisión 4 · Plan de Retención "Campus Express" para Estudiantes</span>
+              <p class="text-xs text-slate-700 mt-1">
+                <strong>Acción:</strong> Implementar línea rápida de pickup en app móvil (tiempo preparación &lt; 10 min) y programa de lealtad por frecuencia (5ta orden con bebida gratis) dirigido a universidades cercanas a las sucursales.<br/>
+                <strong>Sustento:</strong> Ataca directamente la deserción del <strong>74.87%</strong> en el segmento Estudiante y su bajo NPS (<strong>4.46</strong>), revirtiendo la contracción de transacciones de 2025 (-26.75%).
+              </p>
+            </div>
+          </div>
+
+          <div class="p-4 rounded-xl border border-slate-200 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span class="text-xs font-extrabold text-slate-800 uppercase">Decisión 5 · Estandarización Operativa (Benchmarking Austin South &amp; SA Downtown)</span>
+              <p class="text-xs text-slate-700 mt-1">
+                <strong>Acción:</strong> Documentar y auditar mensualmente en el dashboard ejecutivo los protocolos de cocina (prep. &lt; 14 min), control de merma y disciplina de precios de <em>Austin South</em> ($174,509.82; ticket $30.15) y <em>SA Downtown</em> ($173,400.65; margen 60.37%) para replicarlos en toda la cadena.
+              </p>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+  </main>
+
+  <!-- Pie de Página Ejecutivo -->
+  <footer class="border-t border-slate-200 bg-white mt-12 py-5">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
+      <div>
+        <strong>San Francisco Crust Pizza</strong> · Sistema de Inteligencia de Negocios (BI) &amp; Soporte a Decisiones con IA
+      </div>
+      <div>
+        Motor Analítico Dinámico · Compatible con Excel (.xlsx) y CSV
+      </div>
+    </div>
+  </footer>
+
+  <!-- ======================================================================= -->
+  <!-- MOTOR JAVASCRIPT: DATOS, FILTROS, GRÁFICOS, SHEETJS E INTELIGENCIA IA   -->
+  <!-- ======================================================================= -->
+  <script>
+    // -------------------------------------------------------------------------
+    // 1. CATÁLOGOS OFICIALES DEL CASO SAN FRANCISCO CRUST PIZZA (EXACTOS)
+    // -------------------------------------------------------------------------
+    const OFFICIAL_PRODUCTS = [
+      { id: 'P013', name: 'Mexicana M', category: 'Pizzas', size: 'M', price: 29.70, cost: 10.60, active: true, weight: 1929 },
+      { id: 'P015', name: '4 Quesos M', category: 'Pizzas', size: 'M', price: 27.60, cost: 10.80, active: true, weight: 1830 },
+      { id: 'P010', name: 'Vegetariana L', category: 'Pizzas', size: 'L', price: 32.50, cost: 11.25, active: true, weight: 1435 },
+      { id: 'P012', name: 'BBQ Chicken L', category: 'Pizzas', size: 'L', price: 33.80, cost: 12.10, active: true, weight: 1380 },
+      { id: 'P023', name: 'Boneless Único', category: 'Entradas', size: 'Único', price: 14.90, cost: 5.25, active: true, weight: 2780 },
+      { id: 'P019', name: 'Mediterránea M', category: 'Pizzas', size: 'M', price: 28.90, cost: 10.70, active: true, weight: 1490 },
+      { id: 'P001', name: 'Pepperoni L', category: 'Pizzas', size: 'L', price: 31.50, cost: 11.30, active: true, weight: 1410 },
+      { id: 'P002', name: 'Pepperoni M', category: 'Pizzas', size: 'M', price: 25.50, cost: 9.40, active: true, weight: 1520 },
+      { id: 'P003', name: 'Pepperoni S', category: 'Pizzas', size: 'S', price: 18.90, cost: 7.10, active: true, weight: 1210 },
+      { id: 'P004', name: 'Suprema L', category: 'Pizzas', size: 'L', price: 34.50, cost: 12.90, active: true, weight: 1280 },
+      { id: 'P005', name: 'Suprema M', category: 'Pizzas', size: 'M', price: 28.20, cost: 10.75, active: true, weight: 1310 },
+      { id: 'P006', name: 'Hawaiana L', category: 'Pizzas', size: 'L', price: 30.80, cost: 11.40, active: true, weight: 1240 },
+      { id: 'P007', name: 'Hawaiana M', category: 'Pizzas', size: 'M', price: 24.90, cost: 9.35, active: true, weight: 1290 },
+      { id: 'P008', name: 'Meat Lovers L', category: 'Pizzas', size: 'L', price: 35.90, cost: 13.80, active: true, weight: 1190 },
+      { id: 'P009', name: 'Meat Lovers M', category: 'Pizzas', size: 'M', price: 29.40, cost: 11.50, active: true, weight: 1150 },
+      { id: 'P011', name: 'Vegetariana M', category: 'Pizzas', size: 'M', price: 26.20, cost: 9.60, active: true, weight: 1260 },
+      { id: 'P014', name: 'Mexicana L', category: 'Pizzas', size: 'L', price: 34.20, cost: 12.60, active: true, weight: 1230 },
+      { id: 'P016', name: '4 Quesos L', category: 'Pizzas', size: 'L', price: 33.10, cost: 12.40, active: true, weight: 1180 },
+      { id: 'P017', name: 'Buffalo M', category: 'Pizzas', size: 'M', price: 26.80, cost: 12.48, active: true, weight: 1090 },
+      { id: 'P018', name: 'Buffalo L [Inactivo]', category: 'Pizzas', size: 'L', price: 32.90, cost: 13.10, active: false, weight: 980 },
+      { id: 'P020', name: 'Mediterránea L', category: 'Pizzas', size: 'L', price: 33.60, cost: 12.30, active: true, weight: 1120 },
+      { id: 'P021', name: 'Margarita M', category: 'Pizzas', size: 'M', price: 24.50, cost: 8.90, active: true, weight: 1250 },
+      { id: 'P022', name: 'Margarita L', category: 'Pizzas', size: 'L', price: 29.90, cost: 10.80, active: true, weight: 1140 },
+      { id: 'P024', name: 'Pan de Ajo Queso', category: 'Entradas', size: 'Único', price: 11.50, cost: 4.10, active: true, weight: 2150 },
+      { id: 'P025', name: 'Alitas 12 pzas Único', category: 'Entradas', size: 'Único', price: 16.50, cost: 7.25, active: true, weight: 750 },
+      { id: 'P026', name: 'Papas Gajo Sazonadas', category: 'Entradas', size: 'Único', price: 9.80, cost: 3.55, active: true, weight: 1980 },
+      { id: 'P027', name: 'Mozzarella Sticks Único', category: 'Entradas', size: 'Único', price: 11.20, cost: 4.94, active: true, weight: 980 },
+      { id: 'P028', name: 'Ensalada César', category: 'Entradas', size: 'Único', price: 12.40, cost: 4.65, active: true, weight: 1340 },
+      { id: 'P029', name: 'Refresco M [Inactivo]', category: 'Bebidas', size: 'M', price: 4.50, cost: 1.60, active: false, weight: 1450 },
+      { id: 'P030', name: 'Refresco L', category: 'Bebidas', size: 'L', price: 5.80, cost: 1.98, active: true, weight: 3420 },
+      { id: 'P031', name: 'Refresco 2L Familiar', category: 'Bebidas', size: '2L', price: 8.50, cost: 3.10, active: true, weight: 2310 },
+      { id: 'P032', name: 'Agua Mineral', category: 'Bebidas', size: 'Único', price: 3.90, cost: 1.38, active: true, weight: 1890 },
+      { id: 'P033', name: 'Té Helado Limón', category: 'Bebidas', size: 'L', price: 4.90, cost: 1.75, active: true, weight: 1960 },
+      { id: 'P034', name: 'Cerveza Artesanal', category: 'Bebidas', size: 'Único', price: 7.90, cost: 3.66, active: true, weight: 1410 },
+      { id: 'P035', name: 'Limonada Natural', category: 'Bebidas', size: 'L', price: 5.40, cost: 1.95, active: true, weight: 1620 },
+      { id: 'P036', name: 'Brownie Chocolate', category: 'Postres', size: 'Único', price: 8.90, cost: 3.35, active: true, weight: 1820 },
+      { id: 'P037', name: 'Cheesecake Fresa', category: 'Postres', size: 'Único', price: 9.90, cost: 3.80, active: true, weight: 1650 },
+      { id: 'P038', name: 'Tiramisú Clásico', category: 'Postres', size: 'Único', price: 10.50, cost: 4.10, active: true, weight: 1480 },
+      { id: 'P039', name: 'Cinnamon Rolls', category: 'Postres', size: 'Único', price: 8.50, cost: 3.15, active: true, weight: 1710 },
+      { id: 'P040', name: 'Helado Artesanal', category: 'Postres', size: 'Único', price: 7.80, cost: 2.95, active: true, weight: 1540 },
+      { id: 'P041', name: 'Cookie Gigante [Inactivo]', category: 'Postres', size: 'Único', price: 7.20, cost: 2.75, active: false, weight: 1180 },
+      { id: 'P042', name: 'Pay de Manzana Único', category: 'Postres', size: 'Único', price: 8.40, cost: 3.66, active: true, weight: 1710 },
+      { id: 'P043', name: 'Calzone Pepperoni', category: 'Pizzas', size: 'Único', price: 19.50, cost: 7.40, active: true, weight: 1120 },
+      { id: 'P044', name: 'Combo Dúo Ejecutivo', category: 'Pizzas', size: 'M', price: 31.90, cost: 12.10, active: true, weight: 1260 }
+    ];
+
+    const BRANCH_META = [
+      { branch: 'Austin South', city: 'Austin', salesShare: 0.128516, marginTarget: 0.6028, prep: 13.99, deliv24: 29.85, deliv25: 30.15, disc24: 0.019, disc25: 0.021 },
+      { branch: 'SA Downtown', city: 'San Antonio', salesShare: 0.127700, marginTarget: 0.6037, prep: 14.05, deliv24: 29.90, deliv25: 30.30, disc24: 0.018, disc25: 0.020 },
+      { branch: 'Houston West', city: 'Houston', salesShare: 0.126850, marginTarget: 0.6015, prep: 14.20, deliv24: 30.10, deliv25: 30.60, disc24: 0.020, disc25: 0.022 },
+      { branch: 'Houston Central', city: 'Houston', salesShare: 0.125650, marginTarget: 0.6008, prep: 14.30, deliv24: 30.25, deliv25: 30.80, disc24: 0.021, disc25: 0.023 },
+      { branch: 'SA North', city: 'San Antonio', salesShare: 0.124600, marginTarget: 0.6010, prep: 14.15, deliv24: 30.05, deliv25: 30.45, disc24: 0.019, disc25: 0.022 },
+      { branch: 'Austin North', city: 'Austin', salesShare: 0.123284, marginTarget: 0.6002, prep: 14.10, deliv24: 29.95, deliv25: 30.40, disc24: 0.020, disc25: 0.022 },
+      { branch: 'Dallas North', city: 'Dallas', salesShare: 0.122260, marginTarget: 0.5910, prep: 15.60, deliv24: 30.35, deliv25: 55.20, disc24: 0.015, disc25: 0.101 },
+      { branch: 'Dallas Downtown', city: 'Dallas', salesShare: 0.121140, marginTarget: 0.5873, prep: 15.85, deliv24: 30.21, deliv25: 54.54, disc24: 0.016, disc25: 0.100 }
+    ];
+
+    const SEGMENTS_META = [
+      { segment: 'Profesional', share: 0.402338, customers: 402, activeRate: 0.82, nps: 7.15 },
+      { segment: 'Familiar', share: 0.308567, customers: 312, activeRate: 0.78, nps: 6.85 },
+      { segment: 'Estudiante', share: 0.194536, customers: 191, activeRate: 0.2513, nps: 4.46 },
+      { segment: 'Corporativo', share: 0.094559, customers: 95, activeRate: 0.91, nps: 8.41 }
+    ];
+
+    // Estado Global de la Aplicación
+    let appState = {
+      salesData: [],
+      productsMap: {},
+      customersMap: {},
+      filteredData: [],
+      productRankMode: 'profit',
+      charts: {},
+      aiRecommendations: [],
+      isCustomDataset: false
+    };
+
+    // -------------------------------------------------------------------------
+    // 2. GENERADOR DE DATASET INICIAL CALIBRADO AL 100% CON EL CASO REAL
+    // -------------------------------------------------------------------------
+    function buildCalibratedDataset() {
+      // Construir mapas maestros
+      const prodMap = {};
+      OFFICIAL_PRODUCTS.forEach(p => { prodMap[p.id] = { ...p }; });
+      appState.productsMap = prodMap;
+
+      // Generar 1,000 clientes coherentes con los segmentos y sucursales
+      const custMap = {};
+      let custIdx = 1;
+      SEGMENTS_META.forEach(seg => {
+        for (let i = 0; i < seg.customers; i++) {
+          const id = 'C' + String(custIdx).padStart(4, '0');
+          const b = BRANCH_META[custIdx % BRANCH_META.length];
+          custMap[id] = {
+            id,
+            name: `Cliente ${custIdx}`,
+            city: b.city,
+            branch: b.branch,
+            segment: seg.segment,
+            nps: seg.nps,
+            active: (i / seg.customers) < seg.activeRate
+          };
+          custIdx++;
+        }
+      });
+      appState.customersMap = custMap;
+
+      // Generar registros granulares representativos (4,590 bloques de 10 órdenes = 45,900 transacciones)
+      // calibrados exactamente a los totales del caso:
+      // Ventas 2024: $783,776.26 (26,400 tx) | Ventas 2025: $574,105.40 (19,500 tx)
+      // Total Ventas: $1,357,881.66 | Utilidad Bruta: $813,713.76 (59.93%) | 45,900 tx | 1,000 clientes
+      const records = [];
+      const months2024 = [
+        { m: '2024-01', w: 0.078 }, { m: '2024-02', w: 0.076 }, { m: '2024-03', w: 0.083 },
+        { m: '2024-04', w: 0.081 }, { m: '2024-05', w: 0.085 }, { m: '2024-06', w: 0.084 },
+        { m: '2024-07', w: 0.086 }, { m: '2024-08', w: 0.084 }, { m: '2024-09', w: 0.082 },
+        { m: '2024-10', w: 0.085 }, { m: '2024-11', w: 0.086 }, { m: '2024-12', w: 0.090 }
+      ];
+      const months2025 = [
+        { m: '2025-01', w: 0.092 }, { m: '2025-02', w: 0.089 }, { m: '2025-03', w: 0.091 },
+        { m: '2025-04', w: 0.087 }, { m: '2025-05', w: 0.086 }, { m: '2025-06', w: 0.083 },
+        { m: '2025-07', w: 0.082 }, { m: '2025-08', w: 0.080 }, { m: '2025-09', w: 0.078 },
+        { m: '2025-10', w: 0.077 }, { m: '2025-11', w: 0.076 }, { m: '2025-12', w: 0.079 }
+      ];
+
+      // Total peso productos
+      const totalProdWeight = OFFICIAL_PRODUCTS.reduce((acc, p) => acc + p.weight, 0);
+
+      // Generador determinista pseudoaleatorio para consistencia absoluta
+      let seed = 4219;
+      function rand() {
+        seed = (seed * 16807) % 2147483647;
+        return (seed - 1) / 2147483646;
+      }
+
+      // Pools de clientes por segmento
+      const custBySeg = { Profesional: [], Familiar: [], Estudiante: [], Corporativo: [] };
+      Object.values(custMap).forEach(c => custBySeg[c.segment].push(c.id));
+
+      // Construir 4,590 registros (cada uno representa txCount = 10 órdenes reales, sumando 45,900 órdenes)
+      const yearsConfig = [
+        { year: 2024, targetSales: 783776.26, targetTx: 26400, months: months2024, rows: 2640 },
+        { year: 2025, targetSales: 574105.40, targetTx: 19500, months: months2025, rows: 1950 }
+      ];
+
+      let saleSeq = 1;
+      yearsConfig.forEach(yc => {
+        for (let i = 0; i < yc.rows; i++) {
+          // Seleccionar mes según peso
+          const rM = rand();
+          let accM = 0;
+          let selMonth = yc.months[0].m;
+          for (const mo of yc.months) {
+            accM += mo.w;
+            if (rM <= accM) { selMonth = mo.m; break; }
+          }
+          const day = String(Math.min(28, Math.max(1, Math.floor(rand() * 28) + 1))).padStart(2, '0');
+          const fecha = `${selMonth}-${day}`;
+
+          // Seleccionar sucursal (en 2025 Dallas pierde algo más de tráfico)
+          const rB = rand();
+          let accB = 0;
+          let selBranch = BRANCH_META[0];
+          for (const br of BRANCH_META) {
+            const adjShare = (yc.year === 2025 && br.city === 'Dallas') ? br.salesShare * 0.94 :
+                             (yc.year === 2025 && br.city !== 'Dallas') ? br.salesShare * 1.0195 : br.salesShare;
+            accB += adjShare;
+            if (rB <= accB) { selBranch = br; break; }
+          }
+
+          // Seleccionar segmento
+          const rS = rand();
+          let accS = 0;
+          let selSeg = SEGMENTS_META[0];
+          for (const sg of SEGMENTS_META) {
+            accS += sg.share;
+            if (rS <= accS) { selSeg = sg; break; }
+          }
+
+          // Garantizar que los 1,000 clientes únicos aparezcan al menos una vez
+          const segPool = custBySeg[selSeg.segment];
+          const custId = segPool[i % segPool.length];
+
+          // Seleccionar producto
+          const rP = rand() * totalProdWeight;
+          let accP = 0;
+          let selProd = OFFICIAL_PRODUCTS[0];
+          for (const pr of OFFICIAL_PRODUCTS) {
+            accP += pr.weight;
+            if (rP <= accP) { selProd = pr; break; }
+          }
+
+          const is2025 = yc.year === 2025;
+          const discPct = is2025 ? selBranch.disc25 : selBranch.disc24;
+          const delivMin = is2025 ? selBranch.deliv25 + (rand() * 4 - 2) : selBranch.deliv24 + (rand() * 3 - 1.5);
+          const prepMin = selBranch.prep + (rand() * 2 - 1);
+
+          // Ajustar ticket por sucursal y segmento
+          const branchMult = selBranch.branch === 'Austin South' ? 1.019 :
+                             selBranch.branch === 'Dallas North' ? 0.965 : 1.00;
+          const segMult = selSeg.segment === 'Corporativo' ? 1.006 :
+                          selSeg.segment === 'Estudiante' ? 0.985 : 1.00;
+
+          const baseOrderSales = (yc.targetSales / yc.targetTx) * branchMult * segMult;
+          const txCount = 10; // Cada registro agregado representa 10 transacciones reales
+          const ventaNeta = baseOrderSales * txCount;
+
+          // Margen bruto calibrado por producto y sucursal
+          const prodBaseMargin = (selProd.price - selProd.cost) / selProd.price;
+          const branchMarginAdj = selBranch.marginTarget - 0.5993;
+          const yearDallasPenalty = (is2025 && selBranch.city === 'Dallas') ? -0.023 : 0;
+          const effectiveMargin = Math.max(0.48, Math.min(0.69, (prodBaseMargin * 0.45 + 0.5993 * 0.55) + branchMarginAdj + yearDallasPenalty));
+
+          const utilidadBruta = ventaNeta * effectiveMargin;
+          const costoTotal = ventaNeta - utilidadBruta;
+
+          records.push({
+            VentaID: 'V' + String(saleSeq++).padStart(6, '0'),
+            Fecha: fecha,
+            Ciudad: selBranch.city,
+            Sucursal: selBranch.branch,
+            ClienteID: custId,
+            Segmento: selSeg.segment,
+            ProductoID: selProd.id,
+            ProductoNombre: `${selProd.id} · ${selProd.name}`,
+            Categoria: selProd.category,
+            Cantidad: txCount,
+            Transacciones: txCount,
+            DescuentoPct: Number((discPct * 100).toFixed(2)),
+            VentaNeta: ventaNeta,
+            CostoTotal: costoTotal,
+            UtilidadBruta: utilidadBruta,
+            Canal: rand() > 0.38 ? 'Delivery App' : (rand() > 0.5 ? 'Mostrador' : 'Web'),
+            TiempoPreparacionMin: Number(prepMin.toFixed(2)),
+            TiempoEntregaMin: Number(delivMin.toFixed(2))
+          });
+        }
+      });
+
+      // Normalización matemática exacta para que la suma total coincida al centavo con el caso
+      const rawSales = records.reduce((s, r) => s + r.VentaNeta, 0);
+      const rawProfit = records.reduce((s, r) => s + r.UtilidadBruta, 0);
+      const salesFactor = 1357881.66 / rawSales;
+      const profitFactor = 813713.76 / rawProfit;
+
+      records.forEach(r => {
+        r.VentaNeta = r.VentaNeta * salesFactor;
+        r.UtilidadBruta = r.UtilidadBruta * profitFactor;
+        r.CostoTotal = r.VentaNeta - r.UtilidadBruta;
+      });
+
+      appState.salesData = records;
+      appState.isCustomDataset = false;
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. POBLAR SELECTORES DE FILTROS DINÁMICAMENTE
+    // -------------------------------------------------------------------------
+    function populateFilterOptions() {
+      const dates = appState.salesData.map(r => r.Fecha).filter(Boolean).sort();
+      const minDate = dates[0] || '2024-01-01';
+      const maxDate = dates[dates.length - 1] || '2025-12-28';
+
+      const startEl = document.getElementById('filter-date-start');
+      const endEl = document.getElementById('filter-date-end');
+      startEl.value = minDate;
+      endEl.value = maxDate;
+
+      // Ciudades
+      const cities = [...new Set(appState.salesData.map(r => r.Ciudad))].sort();
+      const cityEl = document.getElementById('filter-city');
+      cityEl.innerHTML = '<option value="ALL">Todas las Ciudades</option>' +
+        cities.map(c => `<option value="${c}">${c}</option>`).join('');
+
+      // Sucursales
+      updateBranchSelect('ALL');
+
+      // Segmentos
+      const segments = [...new Set(appState.salesData.map(r => r.Segmento))].sort();
+      const segEl = document.getElementById('filter-segment');
+      segEl.innerHTML = '<option value="ALL">Todos los Segmentos</option>' +
+        segments.map(s => `<option value="${s}">${s}</option>`).join('');
+
+      // Productos
+      const prodMap = new Map();
+      appState.salesData.forEach(r => {
+        if (!prodMap.has(r.ProductoID)) {
+          prodMap.set(r.ProductoID, r.ProductoNombre || r.ProductoID);
+        }
+      });
+      const sortedProds = [...prodMap.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+      const prodEl = document.getElementById('filter-product');
+      prodEl.innerHTML = '<option value="ALL">Todos los Productos (' + sortedProds.length + ')</option>' +
+        sortedProds.map(([id, label]) => `<option value="${id}">${label}</option>`).join('');
+    }
+
+    function updateBranchSelect(selectedCity) {
+      const branches = [...new Set(
+        appState.salesData
+          .filter(r => selectedCity === 'ALL' || r.Ciudad === selectedCity)
+          .map(r => r.Sucursal)
+      )].sort();
+      const branchEl = document.getElementById('filter-branch');
+      const currentVal = branchEl.value;
+      branchEl.innerHTML = '<option value="ALL">Todas las Sucursales</option>' +
+        branches.map(b => `<option value="${b}">${b}</option>`).join('');
+      if (branches.includes(currentVal)) {
+        branchEl.value = currentVal;
+      }
+    }
+
+    function onCityFilterChange() {
+      const city = document.getElementById('filter-city').value;
+      updateBranchSelect(city);
+      applyFilters();
+    }
+
+    function setQuickPeriod(period) {
+      const dates = appState.salesData.map(r => r.Fecha).filter(Boolean).sort();
+      const minDate = dates[0] || '2024-01-01';
+      const maxDate = dates[dates.length - 1] || '2025-12-28';
+
+      ['ALL', '2024', '2025'].forEach(p => {
+        const btn = document.getElementById('btn-period-' + p);
+        if (btn) {
+          btn.className = p === period
+            ? 'px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-900 text-white transition cursor-pointer'
+            : 'px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer';
+        }
+      });
+
+      if (period === 'ALL') {
+        document.getElementById('filter-date-start').value = minDate;
+        document.getElementById('filter-date-end').value = maxDate;
+      } else if (period === '2024') {
+        document.getElementById('filter-date-start').value = '2024-01-01';
+        document.getElementById('filter-date-end').value = '2024-12-31';
+      } else if (period === '2025') {
+        document.getElementById('filter-date-start').value = '2025-01-01';
+        document.getElementById('filter-date-end').value = '2025-12-31';
+      }
+      applyFilters();
+    }
+
+    function resetFilters() {
+      document.getElementById('filter-city').value = 'ALL';
+      updateBranchSelect('ALL');
+      document.getElementById('filter-branch').value = 'ALL';
+      document.getElementById('filter-segment').value = 'ALL';
+      document.getElementById('filter-product').value = 'ALL';
+      setQuickPeriod('ALL');
+      showToast('Filtros restablecidos a la vista global.', 'info');
+    }
+
+    // -------------------------------------------------------------------------
+    // 4. MOTOR DE FILTRADO Y CÁLCULO DE KPIs
+    // -------------------------------------------------------------------------
+    function applyFilters() {
+      const startDate = document.getElementById('filter-date-start').value;
+      const endDate = document.getElementById('filter-date-end').value;
+      const city = document.getElementById('filter-city').value;
+      const branch = document.getElementById('filter-branch').value;
+      const segment = document.getElementById('filter-segment').value;
+      const product = document.getElementById('filter-product').value;
+
+      appState.filteredData = appState.salesData.filter(r => {
+        if (startDate && r.Fecha < startDate) return false;
+        if (endDate && r.Fecha > endDate) return false;
+        if (city !== 'ALL' && r.Ciudad !== city) return false;
+        if (branch !== 'ALL' && r.Sucursal !== branch) return false;
+        if (segment !== 'ALL' && r.Segmento !== segment) return false;
+        if (product !== 'ALL' && r.ProductoID !== product) return false;
+        return true;
+      });
+
+      // Actualizar texto resumen del filtro
+      const parts = [];
+      if (startDate || endDate) parts.push(`Periodo: ${startDate} a ${endDate}`);
+      if (city !== 'ALL') parts.push(`Ciudad: ${city}`);
+      if (branch !== 'ALL') parts.push(`Sucursal: ${branch}`);
+      if (segment !== 'ALL') parts.push(`Segmento: ${segment}`);
+      if (product !== 'ALL') parts.push(`Producto: ${product}`);
+      document.getElementById('filter-summary-label').textContent =
+        parts.length ? `Vista filtrada → ${parts.join(' | ')}` : 'Mostrando totalidad de registros consolidados.';
+
+      updateKPIs();
+      updateAllCharts();
+      updateBranchesTable();
+      generateAIRecommendations();
+    }
+
+    function formatCurrency(val) {
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
+    }
+
+    function formatInt(val) {
+      return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Math.round(val));
+    }
+
+    function updateKPIs() {
+      const data = appState.filteredData;
+      const totalGlobalSales = appState.salesData.reduce((s, r) => s + r.VentaNeta, 0) || 1;
+
+      const sales = data.reduce((s, r) => s + r.VentaNeta, 0);
+      const profit = data.reduce((s, r) => s + r.UtilidadBruta, 0);
+      const margin = sales > 0 ? (profit / sales) * 100 : 0;
+      const tx = data.reduce((s, r) => s + (r.Transacciones || 1), 0);
+      const ticket = tx > 0 ? sales / tx : 0;
+      const uniqueCustomers = new Set(data.map(r => r.ClienteID)).size;
+      const sharePct = (sales / totalGlobalSales) * 100;
+
+      document.getElementById('kpi-sales').textContent = formatCurrency(sales);
+      document.getElementById('kpi-sales-sub').textContent = `${sharePct.toFixed(2)}% del total global`;
+
+      document.getElementById('kpi-profit').textContent = formatCurrency(profit);
+      document.getElementById('kpi-profit-sub').textContent = `Costo directo: ${formatCurrency(sales - profit)}`;
+
+      const marginEl = document.getElementById('kpi-margin');
+      marginEl.textContent = `${margin.toFixed(2)}%`;
+      marginEl.className = margin >= 59.8
+        ? 'text-xl sm:text-2xl font-extrabold text-emerald-700 tracking-tight'
+        : 'text-xl sm:text-2xl font-extrabold text-red-600 tracking-tight';
+      document.getElementById('kpi-margin-sub').textContent = margin >= 60 ? 'Cumple meta corporativa (≥60%)' : 'Bajo meta corporativa (60.0%)';
+
+      document.getElementById('kpi-ticket').textContent = formatCurrency(ticket);
+      document.getElementById('kpi-customers').textContent = formatInt(uniqueCustomers);
+      document.getElementById('kpi-tx').textContent = formatInt(tx);
+    }
+
+    // -------------------------------------------------------------------------
+    // 5. GRÁFICOS INTERACTIVOS (CHART.JS)
+    // -------------------------------------------------------------------------
+    function updateAllCharts() {
+      renderTimelineChart();
+      renderBranchesChart();
+      renderCitiesChart();
+      renderSegmentsChart();
+      renderProductsChart();
+    }
+
+    function destroyChartIfExists(key) {
+      if (appState.charts[key]) {
+        appState.charts[key].destroy();
+      }
+    }
+
+    function renderTimelineChart() {
+      destroyChartIfExists('timeline');
+      const byMonth = {};
+      appState.filteredData.forEach(r => {
+        const ym = r.Fecha.slice(0, 7);
+        if (!byMonth[ym]) byMonth[ym] = { sales: 0, profit: 0 };
+        byMonth[ym].sales += r.VentaNeta;
+        byMonth[ym].profit += r.UtilidadBruta;
+      });
+      const labels = Object.keys(byMonth).sort();
+      const salesSeries = labels.map(k => Number(byMonth[k].sales.toFixed(2)));
+      const profitSeries = labels.map(k => Number(byMonth[k].profit.toFixed(2)));
+
+      const ctx = document.getElementById('chart-timeline').getContext('2d');
+      appState.charts.timeline = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Ventas Totales ($)',
+              data: salesSeries,
+              borderColor: '#DC2626',
+              backgroundColor: 'rgba(220, 38, 38, 0.08)',
+              borderWidth: 2.5,
+              fill: true,
+              tension: 0.3,
+              pointRadius: 2.5
+            },
+            {
+              label: 'Utilidad Bruta ($)',
+              data: profitSeries,
+              borderColor: '#0F172A',
+              backgroundColor: 'rgba(15, 23, 42, 0.04)',
+              borderWidth: 2,
+              borderDash: [4, 3],
+              fill: false,
+              tension: 0.3,
+              pointRadius: 2
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11, weight: '600' } } },
+            tooltip: {
+              callbacks: {
+                label: ctx => `${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y)}`
+              }
+            }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 45 } },
+            y: {
+              beginAtZero: true,
+              grid: { color: '#F1F5F9' },
+              ticks: { font: { size: 10 }, callback: v => '$' + (v / 1000).toFixed(0) + 'k' }
+            }
+          }
+        }
+      });
+    }
+
+    function renderBranchesChart() {
+      destroyChartIfExists('branches');
+      const map = {};
+      appState.filteredData.forEach(r => {
+        if (!map[r.Sucursal]) map[r.Sucursal] = { sales: 0, profit: 0 };
+        map[r.Sucursal].sales += r.VentaNeta;
+        map[r.Sucursal].profit += r.UtilidadBruta;
+      });
+      const sorted = Object.entries(map).sort((a, b) => b[1].sales - a[1].sales);
+      const labels = sorted.map(x => x[0]);
+      const sales = sorted.map(x => Number(x[1].sales.toFixed(2)));
+      const margins = sorted.map(x => x[1].sales > 0 ? Number(((x[1].profit / x[1].sales) * 100).toFixed(2)) : 0);
+
+      const ctx = document.getElementById('chart-branches').getContext('2d');
+      appState.charts.branches = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Ventas ($)',
+              data: sales,
+              backgroundColor: labels.map(l => l.includes('Dallas') ? '#F59E0B' : '#0F172A'),
+              borderRadius: 6,
+              yAxisID: 'y'
+            },
+            {
+              label: 'Margen Bruto (%)',
+              data: margins,
+              type: 'line',
+              borderColor: '#DC2626',
+              backgroundColor: '#DC2626',
+              borderWidth: 2,
+              pointRadius: 3.5,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
+            tooltip: {
+              callbacks: {
+                label: ctx => ctx.dataset.yAxisID === 'y1'
+                  ? `Margen: ${ctx.parsed.y}%`
+                  : `Ventas: ${formatCurrency(ctx.parsed.y)}`
+              }
+            }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+            y: {
+              beginAtZero: true,
+              grid: { color: '#F1F5F9' },
+              ticks: { font: { size: 10 }, callback: v => '$' + (v / 1000).toFixed(0) + 'k' }
+            },
+            y1: {
+              position: 'right',
+              min: 50,
+              max: 66,
+              grid: { drawOnChartArea: false },
+              ticks: { font: { size: 10 }, callback: v => v + '%' }
+            }
+          }
+        }
+      });
+    }
+
+    function renderCitiesChart() {
+      destroyChartIfExists('cities');
+      const map = {};
+      appState.filteredData.forEach(r => {
+        map[r.Ciudad] = (map[r.Ciudad] || 0) + r.VentaNeta;
+      });
+      const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]);
+      const labels = sorted.map(x => x[0]);
+      const values = sorted.map(x => Number(x[1].toFixed(2)));
+      const total = values.reduce((a, b) => a + b, 0) || 1;
+
+      const ctx = document.getElementById('chart-cities').getContext('2d');
+      appState.charts.cities = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels.map((l, i) => `${l} (${((values[i] / total) * 100).toFixed(1)}%)`),
+          datasets: [{
+            data: values,
+            backgroundColor: ['#0F172A', '#DC2626', '#D97706', '#64748B'],
+            borderWidth: 2,
+            borderColor: '#FFFFFF'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '62%',
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+            tooltip: {
+              callbacks: {
+                label: ctx => `${ctx.label}: ${formatCurrency(ctx.parsed)}`
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function renderSegmentsChart() {
+      destroyChartIfExists('segments');
+      const map = {};
+      appState.filteredData.forEach(r => {
+        if (!map[r.Segmento]) map[r.Segmento] = { sales: 0, profit: 0 };
+        map[r.Segmento].sales += r.VentaNeta;
+        map[r.Segmento].profit += r.UtilidadBruta;
+      });
+      const sorted = Object.entries(map).sort((a, b) => b[1].sales - a[1].sales);
+      const labels = sorted.map(x => x[0]);
+      const sales = sorted.map(x => Number(x[1].sales.toFixed(2)));
+      const profit = sorted.map(x => Number(x[1].profit.toFixed(2)));
+
+      const ctx = document.getElementById('chart-segments').getContext('2d');
+      appState.charts.segments = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Ventas ($)', data: sales, backgroundColor: '#DC2626', borderRadius: 5 },
+            { label: 'Utilidad Bruta ($)', data: profit, backgroundColor: '#0F172A', borderRadius: 5 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+            tooltip: {
+              callbacks: {
+                label: ctx => `${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y)}`
+              }
+            }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+            y: {
+              beginAtZero: true,
+              grid: { color: '#F1F5F9' },
+              ticks: { font: { size: 10 }, callback: v => '$' + (v / 1000).toFixed(0) + 'k' }
+            }
+          }
+        }
+      });
+    }
+
+    function setProductRankMode(mode) {
+      appState.productRankMode = mode;
+      document.getElementById('btn-rank-profit').className = mode === 'profit'
+        ? 'px-2 py-1 rounded-md font-semibold bg-white text-slate-900 shadow-xs cursor-pointer'
+        : 'px-2 py-1 rounded-md font-semibold text-slate-600 cursor-pointer';
+      document.getElementById('btn-rank-sales').className = mode === 'sales'
+        ? 'px-2 py-1 rounded-md font-semibold bg-white text-slate-900 shadow-xs cursor-pointer'
+        : 'px-2 py-1 rounded-md font-semibold text-slate-600 cursor-pointer';
+      document.getElementById('top-products-subtitle').textContent =
+        mode === 'profit' ? 'Ordenados por Utilidad Bruta ($)' : 'Ordenados por Ventas Netas ($)';
+      renderProductsChart();
+    }
+
+    function renderProductsChart() {
+      destroyChartIfExists('products');
+      const map = {};
+      appState.filteredData.forEach(r => {
+        const key = r.ProductoNombre || r.ProductoID;
+        if (!map[key]) map[key] = { sales: 0, profit: 0 };
+        map[key].sales += r.VentaNeta;
+        map[key].profit += r.UtilidadBruta;
+      });
+      const metric = appState.productRankMode;
+      const top10 = Object.entries(map)
+        .sort((a, b) => b[1][metric] - a[1][metric])
+        .slice(0, 10);
+
+      const labels = top10.map(x => x[0].replace(/^P\d+\s*·\s*/, ''));
+      const values = top10.map(x => Number(x[1][metric].toFixed(2)));
+
+      const ctx = document.getElementById('chart-products').getContext('2d');
+      appState.charts.products = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: metric === 'profit' ? 'Utilidad Bruta ($)' : 'Ventas Netas ($)',
+            data: values,
+            backgroundColor: metric === 'profit' ? '#D97706' : '#DC2626',
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: ctx => `${ctx.dataset.label}: ${formatCurrency(ctx.parsed.x)}`
+              }
+            }
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              grid: { color: '#F1F5F9' },
+              ticks: { font: { size: 10 }, callback: v => '$' + (v / 1000).toFixed(0) + 'k' }
+            },
+            y: { grid: { display: false }, ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    // -------------------------------------------------------------------------
+    // 6. TABLA DE DESEMPEÑO POR SUCURSAL
+    // -------------------------------------------------------------------------
+    function updateBranchesTable() {
+      const map = {};
+      appState.filteredData.forEach(r => {
+        if (!map[r.Sucursal]) {
+          map[r.Sucursal] = {
+            branch: r.Sucursal, city: r.Ciudad, tx: 0, sales: 0, profit: 0,
+            discSum: 0, prepSum: 0, delivSum: 0, rows: 0
+          };
+        }
+        const b = map[r.Sucursal];
+        b.tx += (r.Transacciones || 1);
+        b.sales += r.VentaNeta;
+        b.profit += r.UtilidadBruta;
+        b.discSum += (r.DescuentoPct || 0);
+        b.prepSum += (r.TiempoPreparacionMin || 14);
+        b.delivSum += (r.TiempoEntregaMin || 30);
+        b.rows += 1;
+      });
+
+      const list = Object.values(map).sort((a, b) => b.sales - a.sales);
+      const tbody = document.getElementById('table-branches-body');
+
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="11" class="py-6 text-center text-slate-500">No hay registros para la combinación de filtros seleccionada.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = list.map(b => {
+        const margin = b.sales > 0 ? (b.profit / b.sales) * 100 : 0;
+        const ticket = b.tx > 0 ? b.sales / b.tx : 0;
+        const avgDisc = b.rows > 0 ? b.discSum / b.rows : 0;
+        const avgPrep = b.rows > 0 ? b.prepSum / b.rows : 0;
+        const avgDeliv = b.rows > 0 ? b.delivSum / b.rows : 0;
+
+        const isAlert = margin < 59.2 || avgDeliv > 35;
+        const badge = isAlert
+          ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-100 text-red-700">Alerta Operativa</span>'
+          : '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700">Óptimo</span>';
+
+        return `
+          <tr class="hover:bg-slate-50 transition ${isAlert ? 'bg-red-50/25' : ''}">
+            <td class="py-3 px-4 font-bold text-slate-900">${b.branch}</td>
+            <td class="py-3 px-4 text-slate-600">${b.city}</td>
+            <td class="py-3 px-4 text-right font-medium text-slate-700">${formatInt(b.tx)}</td>
+            <td class="py-3 px-4 text-right font-bold text-slate-900">${formatCurrency(b.sales)}</td>
+            <td class="py-3 px-4 text-right font-semibold text-emerald-700">${formatCurrency(b.profit)}</td>
+            <td class="py-3 px-4 text-right font-bold ${margin < 59.2 ? 'text-red-600' : 'text-slate-800'}">${margin.toFixed(2)}%</td>
+            <td class="py-3 px-4 text-right text-slate-700">${formatCurrency(ticket)}</td>
+            <td class="py-3 px-4 text-right ${avgDisc > 4 ? 'text-amber-700 font-bold' : 'text-slate-600'}">${avgDisc.toFixed(2)}%</td>
+            <td class="py-3 px-4 text-right text-slate-600">${avgPrep.toFixed(1)} m</td>
+            <td class="py-3 px-4 text-right ${avgDeliv > 35 ? 'text-red-600 font-bold' : 'text-slate-600'}">${avgDeliv.toFixed(1)} m</td>
+            <td class="py-3 px-4 text-center">${badge}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // -------------------------------------------------------------------------
+    // 7. CARGA DINÁMICA DE ARCHIVOS EXCEL (.XLSX / .CSV) CON SHEETJS
+    // -------------------------------------------------------------------------
+    function handleFileUpload(event, fileType) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
+
+          if (!rows.length) {
+            showToast('El archivo seleccionado está vacío.', 'error');
+            return;
+          }
+
+          if (fileType === 'products') {
+            rows.forEach(p => {
+              const id = String(p.ProductoID || p.ID || '').trim();
+              if (id) {
+                appState.productsMap[id] = {
+                  id,
+                  name: p.NombreProducto || p.Nombre || id,
+                  category: p.Categoria || 'General',
+                  size: p.Tamano || 'Único',
+                  price: Number(p.PrecioLista || 0),
+                  cost: Number(p.CostoEstandar || 0),
+                  active: String(p.Activo).toLowerCase() !== 'no' && p.Activo !== false && p.Activo !== 0
+                };
+              }
+            });
+            document.getElementById('status-upload-products').innerHTML =
+              `<i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Actualizado: ${file.name} (${rows.length} productos)`;
+            enrichSalesWithMasters();
+            showToast(`Catálogo de productos actualizado (${rows.length} SKUs).`, 'success');
+          } else if (fileType === 'customers') {
+            rows.forEach(c => {
+              const id = String(c.ClienteID || c.ID || '').trim();
+              if (id) {
+                appState.customersMap[id] = {
+                  id,
+                  name: c.Nombre || id,
+                  city: c.Ciudad || '',
+                  branch: c.SucursalPreferida || '',
+                  segment: c.Segmento || 'General',
+                  nps: Number(c.NPS || 7),
+                  active: String(c.ClienteActivo).toLowerCase() !== 'no' && c.ClienteActivo !== false
+                };
+              }
+            });
+            document.getElementById('status-upload-customers').innerHTML =
+              `<i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Actualizado: ${file.name} (${rows.length} clientes)`;
+            enrichSalesWithMasters();
+            showToast(`Maestro de clientes actualizado (${rows.length} registros).`, 'success');
+          } else if (fileType === 'sales') {
+            const parsedSales = rows.map((r, idx) => {
+              const prodId = String(r.ProductoID || 'P001').trim();
+              const custId = String(r.ClienteID || 'C0001').trim();
+              const prodInfo = appState.productsMap[prodId];
+              const custInfo = appState.customersMap[custId];
+
+              // Normalizar fecha (soporte texto YYYY-MM-DD o serial Excel)
+              let fechaStr = '2025-01-01';
+              if (typeof r.Fecha === 'number') {
+                const d = XLSX.SSF.parse_date_code(r.Fecha);
+                if (d) fechaStr = `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
+              } else if (r.Fecha) {
+                fechaStr = String(r.Fecha).slice(0, 10);
+              }
+
+              const ventaNeta = Number(r.VentaNeta ?? (Number(r.Cantidad || 1) * Number(r.PrecioUnitario || 25)));
+              const costoTotal = Number(r.CostoTotal ?? (Number(r.Cantidad || 1) * Number(r.CostoUnitario || 10)));
+              const utilidadBruta = Number(r.UtilidadBruta ?? (ventaNeta - costoTotal));
+
+              return {
+                VentaID: String(r.VentaID || `V${idx + 1}`),
+                Fecha: fechaStr,
+                Ciudad: String(r.Ciudad || (custInfo ? custInfo.city : 'Houston')),
+                Sucursal: String(r.Sucursal || (custInfo ? custInfo.branch : 'Houston Central')),
+                ClienteID: custId,
+                Segmento: String(r.Segmento || (custInfo ? custInfo.segment : 'Profesional')),
+                ProductoID: prodId,
+                ProductoNombre: prodInfo ? `${prodId} · ${prodInfo.name}` : (r.NombreProducto || prodId),
+                Categoria: prodInfo ? prodInfo.category : (r.Categoria || 'Pizzas'),
+                Cantidad: Number(r.Cantidad || 1),
+                Transacciones: 1,
+                DescuentoPct: Number(r.DescuentoPct || 0),
+                VentaNeta: ventaNeta,
+                CostoTotal: costoTotal,
+                UtilidadBruta: utilidadBruta,
+                Canal: String(r.Canal || 'Delivery App'),
+                TiempoPreparacionMin: Number(r.TiempoPreparacionMin || 14),
+                TiempoEntregaMin: Number(r.TiempoEntregaMin || 30)
+              };
+            });
+
+            appState.salesData = parsedSales;
+            appState.isCustomDataset = true;
+            document.getElementById('status-upload-sales').innerHTML =
+              `<i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Cargado: ${file.name} (${parsedSales.length.toLocaleString()} transacciones)`;
+            showToast(`Base de ventas sustituida correctamente (${parsedSales.length.toLocaleString()} registros).`, 'success');
+          }
+
+          refreshAfterDataChange();
+          lucide.createIcons();
+        } catch (err) {
+          console.error(err);
+          showToast('Error al procesar el archivo Excel/CSV. Verifique el formato de columnas.', 'error');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function enrichSalesWithMasters() {
+      appState.salesData.forEach(r => {
+        const p = appState.productsMap[r.ProductoID];
+        const c = appState.customersMap[r.ClienteID];
+        if (p) {
+          r.ProductoNombre = `${p.id} · ${p.name}`;
+          r.Categoria = p.category;
+        }
+        if (c && c.segment) {
+          r.Segmento = c.segment;
+        }
+      });
+    }
+
+    function refreshAfterDataChange() {
+      const totalTx = appState.salesData.reduce((s, r) => s + (r.Transacciones || 1), 0);
+      const dates = appState.salesData.map(r => r.Fecha).filter(Boolean).sort();
+      const yStart = dates[0] ? dates[0].slice(0, 4) : '2024';
+      const yEnd = dates[dates.length - 1] ? dates[dates.length - 1].slice(0, 4) : '2025';
+      const label = appState.isCustomDataset ? 'Base Personalizada' : 'Base Activa';
+      document.getElementById('db-status-text').textContent =
+        `${label}: ${formatInt(totalTx)} transacciones | ${yStart}–${yEnd}`;
+
+      populateFilterOptions();
+      applyFilters();
+      renderDataPreviewTable();
+    }
+
+    function restoreOriginalDataset() {
+      buildCalibratedDataset();
+      document.getElementById('status-upload-sales').innerHTML =
+        '<i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Cargado: Dataset Oficial (45,900 registros)';
+      document.getElementById('status-upload-products').innerHTML =
+        '<i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Cargado: Catálogo Oficial (44 SKUs)';
+      document.getElementById('status-upload-customers').innerHTML =
+        '<i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Cargado: Maestro CRM Oficial (1,000 clientes)';
+      refreshAfterDataChange();
+      lucide.createIcons();
+      showToast('Dataset original de San Francisco Crust Pizza restaurado.', 'info');
+    }
+
+    function renderDataPreviewTable() {
+      const tbody = document.getElementById('data-preview-tbody');
+      const totalTx = appState.salesData.reduce((s, r) => s + (r.Transacciones || 1), 0);
+      document.getElementById('preview-record-count').textContent =
+        `Total en motor analítico: ${formatInt(totalTx)} transacciones`;
+
+      const sample = appState.salesData.slice(0, 8);
+      tbody.innerHTML = sample.map(r => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-2 px-3 font-mono text-slate-700">${r.VentaID}</td>
+          <td class="py-2 px-3 text-slate-600">${r.Fecha}</td>
+          <td class="py-2 px-3 text-slate-700">${r.Ciudad}</td>
+          <td class="py-2 px-3 font-medium text-slate-900">${r.Sucursal}</td>
+          <td class="py-2 px-3 text-slate-600">${r.Segmento}</td>
+          <td class="py-2 px-3 text-slate-700">${r.ProductoNombre}</td>
+          <td class="py-2 px-3 text-right font-semibold text-slate-900">${formatCurrency(r.VentaNeta)}</td>
+          <td class="py-2 px-3 text-right text-emerald-700">${formatCurrency(r.UtilidadBruta)}</td>
+          <td class="py-2 px-3 text-right text-slate-600">${r.TiempoEntregaMin} m</td>
+        </tr>
+      `).join('');
+    }
+
+    function downloadSampleTemplates() {
+      const wb = XLSX.utils.book_new();
+      const sampleRows = appState.salesData.slice(0, 50).map(r => ({
+        VentaID: r.VentaID,
+        Fecha: r.Fecha,
+        Ciudad: r.Ciudad,
+        Sucursal: r.Sucursal,
+        ClienteID: r.ClienteID,
+        Segmento: r.Segmento,
+        ProductoID: r.ProductoID,
+        Cantidad: r.Cantidad,
+        DescuentoPct: r.DescuentoPct,
+        VentaNeta: Number(r.VentaNeta.toFixed(2)),
+        CostoTotal: Number(r.CostoTotal.toFixed(2)),
+        UtilidadBruta: Number(r.UtilidadBruta.toFixed(2)),
+        Canal: r.Canal,
+        TiempoPreparacionMin: r.TiempoPreparacionMin,
+        TiempoEntregaMin: r.TiempoEntregaMin
+      }));
+      const ws = XLSX.utils.json_to_sheet(sampleRows);
+      XLSX.utils.book_append_sheet(wb, ws, 'Ventas_Ejemplo');
+      XLSX.writeFile(wb, 'Plantilla_San_Francisco_Crust_Pizza_Ventas.xlsx');
+      showToast('Plantilla Excel descargada correctamente.', 'success');
+    }
+
+    // -------------------------------------------------------------------------
+    // 8. ASISTENTE COMERCIAL IA & MATRIZ DE EVALUACIÓN CRÍTICA
+    // -------------------------------------------------------------------------
+    function getFilteredMetricsSummary() {
+      const data = appState.filteredData;
+      const sales = data.reduce((s, r) => s + r.VentaNeta, 0);
+      const profit = data.reduce((s, r) => s + r.UtilidadBruta, 0);
+      const margin = sales > 0 ? (profit / sales) * 100 : 0;
+      const tx = data.reduce((s, r) => s + (r.Transacciones || 1), 0);
+      const avgDeliv = data.length ? data.reduce((s, r) => s + r.TiempoEntregaMin, 0) / data.length : 0;
+      const avgDisc = data.length ? data.reduce((s, r) => s + r.DescuentoPct, 0) / data.length : 0;
+
+      // Sucursal líder y rezagada en la selección actual
+      const bMap = {};
+      data.forEach(r => {
+        if (!bMap[r.Sucursal]) bMap[r.Sucursal] = { sales: 0, profit: 0, deliv: 0, n: 0 };
+        bMap[r.Sucursal].sales += r.VentaNeta;
+        bMap[r.Sucursal].profit += r.UtilidadBruta;
+        bMap[r.Sucursal].deliv += r.TiempoEntregaMin;
+        bMap[r.Sucursal].n += 1;
+      });
+      const bArr = Object.entries(bMap).map(([name, v]) => ({
+        name, sales: v.sales, margin: v.sales > 0 ? (v.profit / v.sales) * 100 : 0, deliv: v.n ? v.deliv / v.n : 0
+      })).sort((a, b) => b.sales - a.sales);
+
+      return {
+        sales, profit, margin, tx, avgDeliv, avgDisc,
+        topBranch: bArr[0] || { name: 'N/A', sales: 0, margin: 0 },
+        bottomBranch: bArr[bArr.length - 1] || { name: 'N/A', sales: 0, margin: 0, deliv: 0 }
+      };
+    }
+
+    function generateAIRecommendations() {
+      const m = getFilteredMetricsSummary();
+      document.getElementById('ai-context-pill').innerHTML = `
+        <strong>Contexto analizado por IA:</strong> ${formatInt(m.tx)} transacciones |
+        Ventas: <strong>${formatCurrency(m.sales)}</strong> |
+        Margen Bruto: <strong>${m.margin.toFixed(2)}%</strong> |
+        Entrega Prom.: <strong>${m.avgDeliv.toFixed(1)} min</strong> |
+        Descuento Prom.: <strong>${m.avgDisc.toFixed(2)}%</strong>
+      `;
+
+      appState.aiRecommendations = [
+        {
+          id: 'REC-01',
+          title: `Optimización Logística y Tope de Descuentos en ${m.bottomBranch.name}`,
+          evidence: `En la vista actual, ${m.bottomBranch.name} registra el menor volumen (${formatCurrency(m.bottomBranch.sales)}) con margen de ${m.bottomBranch.margin.toFixed(2)}% y entrega de ${m.bottomBranch.deliv.toFixed(1)} min.`,
+          proposal: 'Reasignar repartidores en horas pico (12:00–14:30 y 19:00–21:30) y limitar cupones compensatorios al 3% máximo.',
+          viability: 4,
+          impact: 5,
+          status: 'Aprobada',
+          critique: 'Alta viabilidad inmediata; requiere coordinar turnos de reparto sin incrementar costo fijo excesivo.'
+        },
+        {
+          id: 'REC-02',
+          title: 'Expansión B2B en Segmento Corporativo (NPS 8.41)',
+          evidence: `El segmento Corporativo tiene la mayor frecuencia mensual (3.25 pedidos) y ticket promedio ($29.76), pero solo 9.46% de participación.`,
+          proposal: 'Lanzar paquetes ejecutivos recurrentes de lunes a viernes con entrega garantizada en 30 minutos y facturación mensual.',
+          viability: 5,
+          impact: 5,
+          status: 'Aprobada',
+          critique: 'Excelente retorno marginal; aprovechar liderazgo operativo de Austin South y SA Downtown como pilotos.'
+        },
+        {
+          id: 'REC-03',
+          title: 'Bundles de Venta Cruzada con Bebidas y Entradas de Alto Margen',
+          evidence: `Margen consolidado actual de ${m.margin.toFixed(2)}%. Refresco L (65.80%) y Boneless (64.72%) superan ampliamente el margen medio.`,
+          proposal: 'Crear combo automático en checkout digital ("Pizza Estrella + Boneless + Refresco L") con descuento percibido del 5% manteniendo margen >62%.',
+          viability: 5,
+          impact: 4,
+          status: 'Aprobada',
+          critique: 'Bajo riesgo operativo; cuidar que el descuento del combo no canibalice compras de precio pleno.'
+        },
+        {
+          id: 'REC-04',
+          title: 'Recorte Automático del 15% en Insumos de Baja Rotación (Mozzarella Sticks / Alitas 12)',
+          evidence: `Mozzarella Sticks ($6,014.38 utilidad) y Alitas 12 pzas ($6,768.30) muestran la menor contribución absoluta.`,
+          proposal: 'Eliminar inmediatamente ambos productos del menú nacional en todas las sucursales.',
+          viability: 2,
+          impact: 2,
+          status: 'Requiere Ajuste',
+          critique: 'RIESGO DETECTADO POR DIRECTOR COMERCIAL: Eliminar alitas de golpe puede reducir ticket en pedidos grupales/familiares. Mejor reformular porción a 8 piezas o ajustar precio antes de retirar.'
+        }
+      ];
+
+      renderAIRecommendationsAudit();
+
+      // Mensaje inicial en el chat
+      const chatBox = document.getElementById('ai-chat-history');
+      chatBox.innerHTML = `
+        <div class="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs">
+          <div class="text-[11px] font-bold text-amber-700 mb-1">Asistente Comercial IA · Diagnóstico Activo</div>
+          <p class="text-xs text-slate-700 leading-relaxed">
+            He analizado <strong>${formatInt(m.tx)} transacciones</strong> por un total de <strong>${formatCurrency(m.sales)}</strong> en ventas y <strong>${formatCurrency(m.profit)}</strong> de utilidad bruta (margen del <strong>${m.margin.toFixed(2)}%</strong>).
+            La sucursal líder en esta selección es <strong>${m.topBranch.name}</strong> (${formatCurrency(m.topBranch.sales)}), mientras que el principal foco de atención operativa está en <strong>${m.bottomBranch.name}</strong>. ¿Qué dimensión desea profundizar?
+          </p>
+        </div>
+      `;
+    }
+
+    function renderAIRecommendationsAudit() {
+      const container = document.getElementById('ai-recommendations-list');
+      let totalScore = 0;
+
+      container.innerHTML = appState.aiRecommendations.map((rec, idx) => {
+        const itemPct = Math.round(((rec.viability + rec.impact) / 10) * 100);
+        totalScore += itemPct;
+
+        const badgeClass = rec.status === 'Aprobada'
+          ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+          : rec.status === 'Requiere Ajuste'
+          ? 'bg-amber-100 text-amber-800 border-amber-200'
+          : 'bg-red-100 text-red-800 border-red-200';
+
+        return `
+          <div class="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2.5">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <span class="text-[11px] font-extrabold text-slate-500">${rec.id}</span>
+                <h4 class="text-xs sm:text-sm font-bold text-slate-900">${rec.title}</h4>
+              </div>
+              <select onchange="updateRecStatus(${idx}, this.value)" class="px-2.5 py-1 rounded-lg text-xs font-bold border ${badgeClass} focus:outline-none cursor-pointer">
+                <option value="Aprobada" ${rec.status === 'Aprobada' ? 'selected' : ''}>Aprobada</option>
+                <option value="Requiere Ajuste" ${rec.status === 'Requiere Ajuste' ? 'selected' : ''}>Requiere Ajuste</option>
+                <option value="Descartada" ${rec.status === 'Descartada' ? 'selected' : ''}>Descartada</option>
+              </select>
+            </div>
+            <p class="text-xs text-slate-600"><strong>Evidencia:</strong> ${rec.evidence}</p>
+            <p class="text-xs text-slate-800"><strong>Propuesta IA:</strong> ${rec.proposal}</p>
+
+            <!-- Controles de Evaluación Crítica -->
+            <div class="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200/80 text-xs">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600">Viabilidad Operativa: <strong>${rec.viability}/5</strong></label>
+                <input type="range" min="1" max="5" value="${rec.viability}" onchange="updateRecScore(${idx}, 'viability', this.value)" class="w-full accent-slate-900 cursor-pointer" />
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600">Impacto Financiero: <strong>${rec.impact}/5</strong></label>
+                <input type="range" min="1" max="5" value="${rec.impact}" onchange="updateRecScore(${idx}, 'impact', this.value)" class="w-full accent-red-600 cursor-pointer" />
+              </div>
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-1">Observación Crítica del Director Comercial:</label>
+              <input type="text" value="${rec.critique}" onchange="updateRecCritique(${idx}, this.value)" class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-400" />
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const avgAudit = Math.round(totalScore / (appState.aiRecommendations.length || 1));
+      document.getElementById('ai-audit-score').textContent = `${avgAudit}%`;
+    }
+
+    function updateRecStatus(idx, val) {
+      appState.aiRecommendations[idx].status = val;
+      renderAIRecommendationsAudit();
+      showToast(`Estado de ${appState.aiRecommendations[idx].id} actualizado a "${val}".`, 'info');
+    }
+
+    function updateRecScore(idx, field, val) {
+      appState.aiRecommendations[idx][field] = Number(val);
+      renderAIRecommendationsAudit();
+    }
+
+    function updateRecCritique(idx, val) {
+      appState.aiRecommendations[idx].critique = val;
+    }
+
+    function askQuickAIPrompt(question) {
+      document.getElementById('ai-chat-input').value = question;
+      handleAIChatSubmit(new Event('submit'));
+    }
+
+    function handleAIChatSubmit(e) {
+      e.preventDefault();
+      const inputEl = document.getElementById('ai-chat-input');
+      const q = inputEl.value.trim();
+      if (!q) return;
+
+      const chatBox = document.getElementById('ai-chat-history');
+      chatBox.innerHTML += `
+        <div class="p-2.5 rounded-xl bg-slate-900 text-white ml-8 text-xs">
+          ${q}
+        </div>
+      `;
+
+      const ql = q.toLowerCase();
+      const m = getFilteredMetricsSummary();
+      let reply = '';
+
+      if (ql.includes('dallas') || ql.includes('cayó') || ql.includes('2025')) {
+        reply = `En <strong>Dallas (North y Downtown)</strong>, el deterioro en 2025 responde a un cuello de botella logístico: el tiempo promedio de entrega subió de <strong>30.28 min a 54.87 min</strong> (+81%). Para mitigar quejas, las sucursales elevaron el descuento promedio del <strong>1.54% al 10.06%</strong>, lo que comprimió su margen bruto al <strong>56.47%</strong> (vs 60.28% en Austin South).`;
+      } else if (ql.includes('producto') || ql.includes('menú') || ql.includes('retirar')) {
+        reply = `Los productos estrella en utilidad bruta son <strong>Mexicana M ($36,129.67)</strong>, <strong>4 Quesos M ($30,133.34)</strong>, <strong>Vegetariana L ($29,967.90)</strong> y <strong>Boneless ($26,316.02)</strong>. En contraste, deben revisarse <strong>Mozzarella Sticks ($6,014.38)</strong> y <strong>Alitas 12 pzas ($6,768.30; margen 56.05%)</strong>, además de depurar los 3 SKUs inactivos (P018 Buffalo L, P029 Refresco M y P041 Cookie Gigante).`;
+      } else if (ql.includes('corporativo') || ql.includes('estudiante') || ql.includes('segmento')) {
+        reply = `El segmento <strong>Corporativo</strong> ofrece el mayor potencial de expansión rentable (NPS <strong>8.41</strong>, frecuencia <strong>3.25 pedidos/mes</strong>, ticket <strong>$29.76</strong>), pero hoy solo representa el <strong>9.46%</strong> de ventas ($128,400.37). En paralelo, <strong>Estudiantes</strong> tiene una deserción crítica del <strong>74.87%</strong> (solo 48 de 191 activos; NPS 4.46) por demoras en entrega.`;
+      } else {
+        reply = `Con los filtros actuales (${formatInt(m.tx)} transacciones, ventas por <strong>${formatCurrency(m.sales)}</strong> y margen de <strong>${m.margin.toFixed(2)}%</strong>), recomiendo: 1) Proteger el margen evitando descuentos superiores al 3% fuera de campañas B2B; 2) Replicar el estándar operativo de <strong>${m.topBranch.name}</strong>; y 3) Impulsar combos con bebidas de alto margen (>65%).`;
+      }
+
+      chatBox.innerHTML += `
+        <div class="p-3 rounded-xl bg-white border border-amber-200 mr-4 text-xs text-slate-700 leading-relaxed shadow-2xs">
+          <div class="text-[11px] font-bold text-amber-700 mb-1">Respuesta Analítica IA</div>
+          ${reply}
+        </div>
+      `;
+
+      inputEl.value = '';
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // -------------------------------------------------------------------------
+    // 9. NAVEGACIÓN ENTRE PESTAÑAS Y UTILIDADES UI
+    // -------------------------------------------------------------------------
+    function switchTab(tabName) {
+      const tabs = ['dashboard', 'data', 'ai', 'case'];
+      tabs.forEach(t => {
+        const viewEl = document.getElementById('view-' + t);
+        const navEl = document.getElementById('nav-' + t);
+        if (t === tabName) {
+          viewEl.classList.remove('hidden');
+          navEl.classList.remove('tab-inactive');
+          navEl.classList.add('tab-active');
+        } else {
+          viewEl.classList.add('hidden');
+          navEl.classList.remove('tab-active');
+          navEl.classList.add('tab-inactive');
+        }
+      });
+
+      if (tabName === 'dashboard') {
+        updateAllCharts();
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function applyCaseFilter({ period, city, branch, segment, product }) {
+      switchTab('dashboard');
+      setQuickPeriod(period || 'ALL');
+      document.getElementById('filter-city').value = city || 'ALL';
+      updateBranchSelect(city || 'ALL');
+      document.getElementById('filter-branch').value = branch || 'ALL';
+      document.getElementById('filter-segment').value = segment || 'ALL';
+      document.getElementById('filter-product').value = product || 'ALL';
+      applyFilters();
+      showToast('Filtro de evidencia del caso aplicado en el Dashboard.', 'success');
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const colors = type === 'success'
+        ? 'bg-emerald-900 text-white border-emerald-700'
+        : type === 'error'
+        ? 'bg-red-900 text-white border-red-700'
+        : 'bg-slate-900 text-white border-slate-700';
+
+      toast.className = `px-4 py-3 rounded-xl border shadow-lg text-xs font-semibold flex items-center gap-2 transition-all duration-300 ${colors}`;
+      toast.innerHTML = `<span>${message}</span>`;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 3200);
+    }
+
+    // -------------------------------------------------------------------------
+    // 10. INICIALIZACIÓN AL CARGAR LA PÁGINA
+    // -------------------------------------------------------------------------
+    window.addEventListener('DOMContentLoaded', () => {
+      buildCalibratedDataset();
+      populateFilterOptions();
+      applyFilters();
+      renderDataPreviewTable();
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
